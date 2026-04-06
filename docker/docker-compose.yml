@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16
+    container_name: triageiq_db
+    environment:
+      POSTGRES_USER: triageiq
+      POSTGRES_PASSWORD: triageiq
+      POSTGRES_DB: triageiq
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  redis:
+    image: redis:7
+    container_name: triageiq_redis
+    ports:
+        - "6379:6379"
+
+volumes:
+  postgres_data:
+

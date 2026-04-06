@@ -27,7 +27,7 @@ from slowapi.util import get_remote_address
 from app.config import get_settings
 from app.infrastructure.database import dispose_engine
 from app.infrastructure.redis_client import close_redis, get_redis
-from app.presentation.routers import admin, analytics, auth, tickets
+from app.presentation.routers import admin, analytics, auth, ticket
 
 # ── Structured Logging Setup ───────────────────────────────────────────────────
 
@@ -199,7 +199,7 @@ def create_app() -> FastAPI:
     # ── Routers ────────────────────────────────────────────────────────────────
     api_prefix = "/api/v1"
     app.include_router(auth.router, prefix=api_prefix)
-    app.include_router(tickets.router, prefix=api_prefix)
+    app.include_router(ticket.router, prefix=api_prefix)
     app.include_router(admin.router, prefix=api_prefix)
     app.include_router(analytics.router, prefix=api_prefix)
 
