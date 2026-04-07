@@ -1,25 +1,38 @@
 name: CI
+
 on:
   push:
     branches: [main, develop]
   pull_request:
     branches: [main]
+
 env:
   PYTHON_VERSION: "3.12"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Install uv
         uses: astral-sh/setup-uv@v4
+
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
+
+      # --all-extras installs [dev] which contains ruff and black
       - name: Install dependencies
-        run: uv sync --frozen --extra dev
+        run: uv sync --frozen --all-extras
+
       - name: Run ruff
         run: uv run ruff check app/ tests/
+
       - name: Run black
         run: uv run black --check app/ tests/
 
@@ -28,12 +41,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Install uv
         uses: astral-sh/setup-uv@v4
+
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
+
       - name: Install dependencies
-        run: uv sync --frozen --extra dev
+        run: uv sync --frozen --all-extras
+
       - name: Run mypy
         run: uv run mypy app/ --ignore-missing-imports --no-strict-optional
 
@@ -42,12 +59,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Install uv
         uses: astral-sh/setup-uv@v4
+
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
+
+      # --all-extras installs pytest, pytest-asyncio, httpx, aiosqlite, pytest-cov
+      # Do NOT run "uv add aiosqlite" separately — it's already in [dev] extras
       - name: Install dependencies
-        run: uv sync --frozen --extra dev
+        run: uv sync --frozen --all-extras
+
       - name: Run tests
         env:
           JWT_SECRET_KEY: "testsecretkey_minimum_32_characters_required"
@@ -55,11 +78,13 @@ jobs:
           REDIS_URL: "redis://localhost:6379/0"
           OPENAI_API_KEY: "sk-test-placeholder"
           ENV: "development"
+          BCRYPT_ROUNDS: "4"
         run: |
           uv run pytest tests/ \
             --tb=short \
             --cov=app \
             --cov-report=term-missing \
+            --cov-fail-under=70 \
             -v
 
   docker:
@@ -68,6 +93,8 @@ jobs:
     needs: [lint, test]
     steps:
       - uses: actions/checkout@v4
+
       - uses: docker/setup-buildx-action@v3
-      - name: Build
+
+      - name: Build image
         run: docker build -f docker/Dockerfile -t triageiq:${{ github.sha }} .
