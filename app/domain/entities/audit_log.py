@@ -7,10 +7,10 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from app.infrastructure.database import  Base
+from app.infrastructure.database import GUID, Base, _json_type
 from sqlalchemy import DateTime, ForeignKey, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
+
 
 
 class RefreshToken(Base):
@@ -20,9 +20,9 @@ class RefreshToken(Base):
         Index("ix_refresh_tokens_user_id", "user_id"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
@@ -48,6 +48,7 @@ class RefreshToken(Base):
         if expires.tzinfo is None:
             expires = expires.replace(tzinfo=UTC)
         return self.revoked_at is None and expires > now
+        
 
 
 class AuditLog(Base):
@@ -64,18 +65,18 @@ class AuditLog(Base):
         Index("ix_audit_logs_action", "action"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
     actor_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID,
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,  # nullable in case actor is deleted
     )
     actor_role: Mapped[str] = mapped_column(String(20), nullable=False)
     action: Mapped[str] = mapped_column(String(100), nullable=False)
     target_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    target_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    before_state: Mapped[dict[str, Any] | None] = mapped_column(UUID(as_uuid=True), nullable=True)
-    after_state: Mapped[dict[str, Any] | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    target_id: Mapped[uuid.UUID] = mapped_column(GUID, nullable=False)
+    before_state: Mapped[dict[str, Any] | None] = mapped_column(_json_type(), nullable=True)
+    after_state: Mapped[dict[str, Any] | None] = mapped_column(_json_type(), nullable=True)
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
