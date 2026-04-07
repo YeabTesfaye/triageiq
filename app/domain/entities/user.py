@@ -9,7 +9,6 @@ from datetime import UTC, datetime
 from app.domain.enums import Role, UserStatus
 from app.infrastructure.database import GUID, Base
 from sqlalchemy import Boolean, DateTime, Index, Integer, String, func
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 

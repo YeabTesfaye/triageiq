@@ -10,7 +10,7 @@ from typing import Any
 
 from app.domain.entities.audit_log import AuditLog
 from app.domain.enums import AuditAction
-from sqlalchemy import ColumnElement, and_, func, select,true
+from sqlalchemy import ColumnElement, and_, func, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -57,7 +57,7 @@ class AuditLogRepository:
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[Sequence[AuditLog], int]:
-        conditions : list[ColumnElement[bool]] = []
+        conditions: list[ColumnElement[bool]] = []
         if actor_id:
             conditions.append(AuditLog.actor_id == actor_id)
         if target_type:

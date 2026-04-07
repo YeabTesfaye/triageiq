@@ -2,13 +2,13 @@
 Unit tests — pure logic with no external services.
 Password hashing, JWT lifecycle, RBAC rules, AI schema validation.
 """
+
 import uuid
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, patch
 
 import pytest
-
-from app.domain.enums import Role, TicketCategory, TicketPriority, UserStatus
+from app.domain.enums import Role, TicketCategory, TicketPriority
 from app.infrastructure.security.jwt_handler import (
     create_access_token,
     decode_access_token,
@@ -43,7 +43,6 @@ class TestPasswordHashing:
         assert hash_password("MySecret@99") != hash_password("MySecret@99")
 
     def test_wrong_type_does_not_crash(self):
-        hashed = hash_password("MySecret@99")
         assert verify_password("anything", "not_a_valid_hash") is False
 
 
@@ -112,12 +111,12 @@ class TestJWTHandler:
         assert "full_name" not in d
 
     def test_ttl_future_token(self):
-        future = int((datetime.now(timezone.utc) + timedelta(minutes=10)).timestamp())
+        future = int((datetime.now(UTC) + timedelta(minutes=10)).timestamp())
         ttl = get_token_remaining_ttl(future)
         assert 0 < ttl <= 600
 
     def test_ttl_expired_token(self):
-        past = int((datetime.now(timezone.utc) - timedelta(minutes=5)).timestamp())
+        past = int((datetime.now(UTC) - timedelta(minutes=5)).timestamp())
         assert get_token_remaining_ttl(past) == 0
 
     def test_each_token_has_unique_jti(self):
@@ -210,8 +209,8 @@ class TestAIResponseValidation:
         assert 0.0 <= a.confidence <= 1.0
 
     def test_invalid_category_raises(self):
-        from pydantic import ValidationError
         from app.infrastructure.ai.openai_client import AITicketAnalysis
+        from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
             AITicketAnalysis.model_validate(
@@ -224,8 +223,8 @@ class TestAIResponseValidation:
             )
 
     def test_invalid_priority_raises(self):
-        from pydantic import ValidationError
         from app.infrastructure.ai.openai_client import AITicketAnalysis
+        from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
             AITicketAnalysis.model_validate(

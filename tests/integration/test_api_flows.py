@@ -3,15 +3,13 @@ Integration tests — full HTTP → service → repository → SQLite flows.
 No mocking except Redis (which is mocked in conftest.py autouse fixture).
 OpenAI is mocked per-test via the mock_openai fixture.
 """
+
 import uuid
-from unittest.mock import AsyncMock, patch
 
 import pytest
-import pytest_asyncio
-
-from tests.conftest import auth_headers, make_user
-from app.domain.enums import Role, TicketStatus, UserStatus
+from app.domain.enums import Role
 from app.infrastructure.security.jwt_handler import create_access_token
+from tests.conftest import make_user
 
 
 # ══════════════════════════════════════════════════════════════════════════════

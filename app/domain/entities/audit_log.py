@@ -12,7 +12,6 @@ from sqlalchemy import DateTime, ForeignKey, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
-
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
     __table_args__ = (
@@ -48,7 +47,6 @@ class RefreshToken(Base):
         if expires.tzinfo is None:
             expires = expires.replace(tzinfo=UTC)
         return self.revoked_at is None and expires > now
-        
 
 
 class AuditLog(Base):

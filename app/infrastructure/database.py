@@ -3,10 +3,13 @@ Database infrastructure — async engine, session factory, base model.
 Uses asyncpg driver with proper connection pooling.
 """
 
+import uuid
 from collections.abc import AsyncGenerator
 from typing import Any
-import uuid
 
+import sqlalchemy as sa
+from sqlalchemy import String, TypeDecorator
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import (
     AsyncAttrs,
     AsyncSession,
@@ -16,24 +19,22 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase
 
 
-import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
-from  sqlalchemy import TypeDecorator, String
-import uuid
-
 def _json_type():
     """Use JSONB on PostgreSQL, JSON on everything else (SQLite for tests)."""
-    from sqlalchemy import event
     return sa.JSON().with_variant(JSONB(), "postgresql")
+
 
 class GUID(TypeDecorator):
     impl = String(36)
     cache_ok = True
+
     def process_bind_param(self, value, dialect):
         return str(value) if value is not None else None
+
     def process_result_value(self, value, dialect):
         return uuid.UUID(value) if value is not None else None
-    
+
+
 class Base(AsyncAttrs, DeclarativeBase):
     """
     Declarative base for all ORM models.

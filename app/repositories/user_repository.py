@@ -9,9 +9,8 @@ from datetime import UTC, datetime
 
 from app.domain.entities.user import User
 from app.domain.enums import Role, UserStatus
-from sqlalchemy import and_, func, select, update
+from sqlalchemy import ColumnElement, and_, func, select, true, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import ColumnElement, true
 
 
 class UserRepository:
@@ -70,7 +69,7 @@ class UserRepository:
         offset: int = 0,
     ) -> tuple[Sequence[User], int]:
         """Returns (users, total_count) for pagination."""
-        conditions : list[ColumnElement[bool]] = []
+        conditions: list[ColumnElement[bool]] = []
         if not include_deleted:
             conditions.append(User.deleted_at.is_(None))
         if role:

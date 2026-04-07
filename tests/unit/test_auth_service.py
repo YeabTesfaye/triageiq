@@ -2,11 +2,12 @@
 Auth service unit tests — all DB and Redis interactions mocked.
 Tests the business logic layer in isolation.
 """
+
 import uuid
+from datetime import UTC
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from app.application.services.auth_service import AuthError, AuthService
 from app.domain.enums import Role, UserStatus
 from app.infrastructure.security.password_handler import hash_password
@@ -199,9 +200,9 @@ class TestLogin:
 
     @pytest.mark.asyncio
     async def test_login_deleted_user_raises(self, service, user_repo):
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        user = _make_mock_user(deleted_at=datetime.now(timezone.utc))
+        user = _make_mock_user(deleted_at=datetime.now(UTC))
         user_repo.get_by_email.return_value = user
 
         with patch("app.application.services.auth_service.get_failed_login_count", return_value=0):

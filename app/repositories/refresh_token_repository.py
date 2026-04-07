@@ -2,6 +2,7 @@
 RefreshToken repository — hashed token storage, lookup, and rotation.
 Raw tokens are NEVER stored; only SHA-256 hashes.
 """
+
 import hashlib
 import secrets
 import uuid

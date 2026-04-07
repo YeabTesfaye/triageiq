@@ -36,7 +36,6 @@ class Ticket(Base):
     # Full raw AI JSON payload for debugging / re-processing
     ai_raw: Mapped[dict[str, Any] | None] = mapped_column(_json_type(), nullable=True)
 
-
     status: Mapped[str] = mapped_column(
         String(20),
         nullable=False,

@@ -98,3 +98,8 @@ omit = ["alembic/*", "tests/*"]
 [tool.coverage.report]
 fail_under = 70
 show_missing = true
+
+[dependency-groups]
+dev = [
+    "types-bleach>=6.3.0.20260402",
+]

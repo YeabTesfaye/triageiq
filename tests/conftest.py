@@ -3,18 +3,15 @@ Shared pytest fixtures.
 All tests use SQLite in-memory — no external services needed.
 Redis and OpenAI are mocked globally so no infrastructure is required.
 """
+
 import asyncio
 import uuid
-from datetime import datetime, timezone
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
-from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-
 from app.domain.entities.ticket import Ticket
 from app.domain.entities.user import User
 from app.domain.enums import Role, TicketCategory, TicketPriority, TicketStatus, UserStatus
@@ -22,6 +19,9 @@ from app.infrastructure.database import Base, get_db_session
 from app.infrastructure.security.jwt_handler import create_access_token
 from app.infrastructure.security.password_handler import hash_password
 from app.main import create_app
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # ── In-memory SQLite engine ────────────────────────────────────────────────────
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
@@ -101,8 +101,8 @@ def make_user(
         role=role.value,
         status=status.value,
         is_verified=True,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
 
 
@@ -115,8 +115,8 @@ def make_ticket(user_id: uuid.UUID | None = None) -> Ticket:
         priority=TicketPriority.HIGH.value,
         ai_response="Our billing team will look into this.",
         status=TicketStatus.OPEN.value,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
     )
 
 

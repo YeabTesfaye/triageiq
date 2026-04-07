@@ -1,6 +1,7 @@
 """
 Ticket repository — all database operations for the Ticket entity.
 """
+
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
@@ -168,16 +169,13 @@ class TicketRepository:
         by_status_stmt = select(Ticket.status, func.count(Ticket.id)).group_by(Ticket.status)
 
         by_cat: dict[str, int] = {
-            str(r[0]): int(r[1])
-            for r in (await self._session.execute(by_category_stmt)).all()
+            str(r[0]): int(r[1]) for r in (await self._session.execute(by_category_stmt)).all()
         }
         by_pri: dict[str, int] = {
-            str(r[0]): int(r[1])
-            for r in (await self._session.execute(by_priority_stmt)).all()
+            str(r[0]): int(r[1]) for r in (await self._session.execute(by_priority_stmt)).all()
         }
         by_sta: dict[str, int] = {
-            str(r[0]): int(r[1])
-            for r in (await self._session.execute(by_status_stmt)).all()
+            str(r[0]): int(r[1]) for r in (await self._session.execute(by_status_stmt)).all()
         }
         return {
             "total": total,
