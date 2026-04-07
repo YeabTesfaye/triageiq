@@ -1,14 +1,11 @@
 name: CI
-
 on:
   push:
     branches: [main, develop]
   pull_request:
     branches: [main]
-
 env:
   PYTHON_VERSION: "3.12"
-
 jobs:
   lint:
     name: Lint & Format
@@ -20,7 +17,7 @@ jobs:
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
       - name: Install dependencies
-        run: uv sync --frozen
+        run: uv sync --frozen --extra dev
       - name: Run ruff
         run: uv run ruff check app/ tests/
       - name: Run black
@@ -36,7 +33,7 @@ jobs:
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
       - name: Install dependencies
-        run: uv sync --frozen
+        run: uv sync --frozen --extra dev
       - name: Run mypy
         run: uv run mypy app/ --ignore-missing-imports --no-strict-optional
 
@@ -50,9 +47,7 @@ jobs:
       - name: Set up Python
         run: uv python install ${{ env.PYTHON_VERSION }}
       - name: Install dependencies
-        run: uv sync --frozen
-      - name: Install aiosqlite
-        run: uv add aiosqlite --dev
+        run: uv sync --frozen --extra dev
       - name: Run tests
         env:
           JWT_SECRET_KEY: "testsecretkey_minimum_32_characters_required"
