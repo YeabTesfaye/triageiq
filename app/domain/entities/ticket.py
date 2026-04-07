@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any
 
 from app.domain.enums import TicketCategory, TicketPriority, TicketStatus
-from app.infrastructure.database import Base
+from app.infrastructure.database import GUID, Base, _json_type
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -23,9 +23,9 @@ class Ticket(Base):
         Index("ix_tickets_priority", "priority"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        GUID,
         ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
     )
@@ -35,7 +35,8 @@ class Ticket(Base):
     priority: Mapped[str | None] = mapped_column(String(20), nullable=True)
     ai_response: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Full raw AI JSON payload for debugging / re-processing
-    ai_raw: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    ai_raw: Mapped[dict[str, Any] | None] = mapped_column(_json_type(), nullable=True)
+
 
     status: Mapped[str] = mapped_column(
         String(20),

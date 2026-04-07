@@ -169,9 +169,9 @@ class TicketRepository:
         by_priority_stmt = select(Ticket.priority, func.count(Ticket.id)).group_by(Ticket.priority)
         by_status_stmt = select(Ticket.status, func.count(Ticket.id)).group_by(Ticket.status)
 
-        by_cat = dict((await self._session.execute(by_category_stmt)).all())
-        by_pri = dict((await self._session.execute(by_priority_stmt)).all())
-        by_sta = dict((await self._session.execute(by_status_stmt)).all())
+        by_cat: dict[str,int] = dict((await self._session.execute(by_category_stmt)).all())
+        by_pri: dict[str,int] = dict((await self._session.execute(by_priority_stmt)).all())
+        by_sta: dict[str,int] = dict((await self._session.execute(by_status_stmt)).all())
 
         return {
             "total": total,

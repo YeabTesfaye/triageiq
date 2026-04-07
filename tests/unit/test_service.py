@@ -3,16 +3,17 @@ Service unit tests — TicketService and AdminService business logic.
 All repositories and Redis mocked.
 """
 import uuid
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.application.services.admin_service import AdminError, AdminService
 from app.application.services.ticket_service import TicketService
 from app.domain.enums import AuditAction, Role, TicketCategory, TicketPriority, TicketStatus, UserStatus
+from app.domain.enums import (
+    AuditAction, Role, TicketCategory, TicketPriority, TicketStatus, UserStatus
+)
 from app.infrastructure.ai.openai_client import AIServiceError, AITicketAnalysis
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 # HELPERS
@@ -65,7 +66,7 @@ class TestTicketService:
             return_value=_mock_ai_result(),
         ):
             service = TicketService(ticket_repo=ticket_repo)
-            result = await service.create_ticket(
+            await service.create_ticket(
                 user_id=uuid.uuid4(),
                 message="My payment failed and I need help urgently.",
             )
