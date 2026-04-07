@@ -2,10 +2,8 @@
 Tickets router — user-facing ticket operations.
 Ownership enforced at the service layer; 404 returned for not-found OR not-owner.
 """
-import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+import uuid
 
 from app.application.services.ticket_service import TicketService
 from app.dependencies import PaginationParams, get_current_user
@@ -19,6 +17,8 @@ from app.presentation.schemas.ticket_schemas import (
     TicketResponse,
 )
 from app.repositories.ticket_repository import TicketRepository
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 

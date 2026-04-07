@@ -2,16 +2,15 @@
 User entity — SQLAlchemy ORM model with domain invariants.
 The model owns its own field-level constraints.
 """
-import uuid
-from datetime import datetime
-from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Index, Integer, String, func
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+import uuid
+from datetime import UTC, datetime
 
 from app.domain.enums import Role, UserStatus
 from app.infrastructure.database import Base
+from sqlalchemy import Boolean, DateTime, Index, Integer, String, func
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class User(Base):
@@ -29,9 +28,7 @@ class User(Base):
         default=uuid.uuid4,
         index=True,
     )
-    email: Mapped[str] = mapped_column(
-        String(255), unique=True, nullable=False
-    )
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
 
@@ -52,20 +49,14 @@ class User(Base):
     )
 
     # Login tracking
-    last_login_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     failed_login_attempts: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )
-    locked_until: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Soft delete
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -99,17 +90,13 @@ class User(Base):
 
     @property
     def is_active(self) -> bool:
-        return (
-            self.status == UserStatus.ACTIVE.value
-            and self.deleted_at is None
-        )
+        return self.status == UserStatus.ACTIVE.value and self.deleted_at is None
 
     @property
     def is_locked(self) -> bool:
         if self.locked_until is None:
             return False
-        from datetime import timezone
-        return datetime.now(timezone.utc) < self.locked_until
+        return datetime.now(UTC) < self.locked_until
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<User id={self.id} email=***{self.email[-6:]} role={self.role}>"

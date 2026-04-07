@@ -2,15 +2,16 @@
 AuditLog repository — write-only audit trail.
 Logs are NEVER updated or deleted via the application layer.
 """
-import uuid
-from datetime import datetime
-from typing import Any, Dict, Optional, Sequence
 
-from sqlalchemy import and_, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+import uuid
+from collections.abc import Sequence
+from datetime import datetime
+from typing import Any
 
 from app.domain.entities.audit_log import AuditLog
 from app.domain.enums import AuditAction
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class AuditLogRepository:
@@ -25,10 +26,10 @@ class AuditLogRepository:
         action: AuditAction,
         target_type: str,
         target_id: uuid.UUID,
-        before_state: Optional[Dict[str, Any]] = None,
-        after_state: Optional[Dict[str, Any]] = None,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
+        before_state: dict[str, Any] | None = None,
+        after_state: dict[str, Any] | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
     ) -> AuditLog:
         log = AuditLog(
             actor_id=actor_id,
@@ -48,11 +49,11 @@ class AuditLogRepository:
     async def list_logs(
         self,
         *,
-        actor_id: Optional[uuid.UUID] = None,
-        target_type: Optional[str] = None,
-        action: Optional[str] = None,
-        created_after: Optional[datetime] = None,
-        created_before: Optional[datetime] = None,
+        actor_id: uuid.UUID | None = None,
+        target_type: str | None = None,
+        action: str | None = None,
+        created_after: datetime | None = None,
+        created_before: datetime | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> tuple[Sequence[AuditLog], int]:
@@ -70,9 +71,7 @@ class AuditLogRepository:
 
         where_clause = and_(*conditions) if conditions else True  # type: ignore
 
-        count_stmt = (
-            select(func.count()).select_from(AuditLog).where(where_clause)
-        )
+        count_stmt = select(func.count()).select_from(AuditLog).where(where_clause)
         total = (await self._session.execute(count_stmt)).scalar_one()
 
         stmt = (

@@ -16,11 +16,8 @@ The dependency graph:
     └─ wraps get_current_user
     └─ raises 403 if role not in allowed set
 """
-import uuid
-from typing import Optional
 
-from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+import uuid
 
 from app.domain.entities.user import User
 from app.domain.enums import Role, UserStatus
@@ -31,6 +28,8 @@ from app.infrastructure.redis_client import (
 )
 from app.infrastructure.security.jwt_handler import decode_access_token
 from app.repositories.user_repository import UserRepository
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -43,9 +42,10 @@ _CREDENTIALS_EXCEPTION = HTTPException(
 
 # ── Core Auth Dependency ───────────────────────────────────────────────────────
 
+
 async def get_current_user(
     request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     session: AsyncSession = Depends(get_db_session),
 ) -> User:
     """
@@ -102,9 +102,9 @@ async def get_current_user(
 
 async def get_current_user_optional(
     request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_bearer_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     session: AsyncSession = Depends(get_db_session),
-) -> Optional[User]:
+) -> User | None:
     """Like get_current_user but returns None instead of raising for public routes."""
     if credentials is None:
         return None
@@ -115,6 +115,7 @@ async def get_current_user_optional(
 
 
 # ── RBAC Dependency Factory ────────────────────────────────────────────────────
+
 
 def require_roles(*roles: Role):
     """
@@ -129,16 +130,14 @@ def require_roles(*roles: Role):
 
     Never check roles inside route handlers. Always use this factory.
     """
+
     async def _check(
         current_user: User = Depends(get_current_user),
     ) -> User:
         if Role(current_user.role) not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=(
-                    f"Insufficient permissions. "
-                    f"Required: {[r.value for r in roles]}"
-                ),
+                detail=(f"Insufficient permissions. " f"Required: {[r.value for r in roles]}"),
             )
         return current_user
 
@@ -146,6 +145,7 @@ def require_roles(*roles: Role):
 
 
 # ── Pagination ─────────────────────────────────────────────────────────────────
+
 
 class PaginationParams:
     def __init__(
@@ -158,6 +158,7 @@ class PaginationParams:
 
 
 # ── Request Context Helpers ────────────────────────────────────────────────────
+
 
 def get_client_ip(request: Request) -> str:
     """Extract real IP, respecting X-Forwarded-For from trusted proxies."""

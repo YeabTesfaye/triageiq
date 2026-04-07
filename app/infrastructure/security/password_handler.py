@@ -2,10 +2,10 @@
 Password security — bcrypt hashing with configurable cost factor.
 Uses the bcrypt library directly (avoids passlib/bcrypt4 version incompatibility).
 """
+
 import re
 
 import bcrypt as _bcrypt
-
 from app.config import get_settings
 
 

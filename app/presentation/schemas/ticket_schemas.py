@@ -1,14 +1,13 @@
 """
 Ticket schemas — request/response models for ticket endpoints.
 """
+
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 
 import bleach
+from app.domain.enums import TicketStatus
 from pydantic import BaseModel, Field, field_validator
-
-from app.domain.enums import TicketCategory, TicketPriority, TicketStatus
 
 
 class CreateTicketRequest(BaseModel):
@@ -28,9 +27,9 @@ class TicketResponse(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
     message: str
-    category: Optional[str]
-    priority: Optional[str]
-    ai_response: Optional[str]
+    category: str | None
+    priority: str | None
+    ai_response: str | None
     status: str
     created_at: datetime
     updated_at: datetime
@@ -39,7 +38,7 @@ class TicketResponse(BaseModel):
 
 
 class TicketListResponse(BaseModel):
-    items: List[TicketResponse]
+    items: list[TicketResponse]
     total: int
     limit: int
     offset: int
@@ -57,5 +56,6 @@ class AIErrorDetail(BaseModel):
 
 class CreateTicketErrorResponse(BaseModel):
     """Returned when AI is unavailable but ticket may be saved in degraded mode."""
-    ticket_id: Optional[uuid.UUID]
+
+    ticket_id: uuid.UUID | None
     error: AIErrorDetail

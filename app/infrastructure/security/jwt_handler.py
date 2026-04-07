@@ -3,13 +3,13 @@ JWT infrastructure — token creation, validation, and blacklisting.
 Tokens carry minimal payload: user_id, role, jti (for blacklisting), iat.
 No PII beyond what is strictly required.
 """
-import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
 
-from jose import JWTError, jwt
+import uuid
+from datetime import UTC, datetime
+from typing import Any
 
 from app.config import get_settings
+from jose import JWTError, jwt
 
 
 class TokenPayload:
@@ -25,14 +25,14 @@ class TokenPayload:
         iat: int,
         exp: int,
     ) -> None:
-        self.sub = sub        # user_id (UUID str)
-        self.role = role      # Role enum value
-        self.jti = jti        # JWT ID — unique per token for blacklisting
-        self.iat = iat        # issued-at (UNIX)
-        self.exp = exp        # expiry (UNIX)
+        self.sub = sub  # user_id (UUID str)
+        self.role = role  # Role enum value
+        self.jti = jti  # JWT ID — unique per token for blacklisting
+        self.iat = iat  # issued-at (UNIX)
+        self.exp = exp  # expiry (UNIX)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TokenPayload":
+    def from_dict(cls, data: dict[str, Any]) -> "TokenPayload":
         return cls(
             sub=data["sub"],
             role=data["role"],
@@ -41,7 +41,7 @@ class TokenPayload:
             exp=data["exp"],
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "sub": self.sub,
             "role": self.role,
@@ -59,7 +59,7 @@ def create_access_token(user_id: str, role: str) -> tuple[str, str, int]:
         (token, jti, exp_unix_timestamp)
     """
     settings = get_settings()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expire = now.timestamp() + (settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
     jti = str(uuid.uuid4())
 
@@ -80,7 +80,7 @@ def create_access_token(user_id: str, role: str) -> tuple[str, str, int]:
     return token, jti, int(expire)
 
 
-def decode_access_token(token: str) -> Optional[TokenPayload]:
+def decode_access_token(token: str) -> TokenPayload | None:
     """
     Decode and validate a JWT.
     Returns None (not raises) on any validation failure to allow
@@ -102,5 +102,5 @@ def decode_access_token(token: str) -> Optional[TokenPayload]:
 
 def get_token_remaining_ttl(exp_unix: int) -> int:
     """Return remaining seconds until token expiry (min 0)."""
-    remaining = exp_unix - int(datetime.now(timezone.utc).timestamp())
+    remaining = exp_unix - int(datetime.now(UTC).timestamp())
     return max(0, remaining)

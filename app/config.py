@@ -3,10 +3,10 @@ Application configuration using pydantic-settings.
 All values come from environment variables or .env file.
 No hardcoded secrets anywhere in the codebase.
 """
-from functools import lru_cache
-from typing import List
 
-from pydantic import AnyHttpUrl, field_validator
+from functools import lru_cache
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,13 +34,11 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:8080"
 
     @property
-    def cors_origins(self) -> List[str]:
+    def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]
 
     # ── Database ───────────────────────────────────────────────────────────────
-    DATABASE_URL: str = (
-        "postgresql+asyncpg://triageiq:triageiq@localhost:5432/triageiq"
-    )
+    DATABASE_URL: str = "postgresql+asyncpg://triageiq:triageiq@localhost:5432/triageiq"
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
     DB_POOL_TIMEOUT: int = 30

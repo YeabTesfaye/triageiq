@@ -2,9 +2,6 @@
 Auth router — presentation layer only.
 No business logic here; delegates entirely to AuthService.
 """
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.auth_service import AuthError, AuthService
 from app.dependencies import get_client_ip, get_current_user, get_user_agent
@@ -19,6 +16,9 @@ from app.presentation.schemas.auth_schemas import (
 )
 from app.repositories.refresh_token_repository import RefreshTokenRepository
 from app.repositories.user_repository import UserRepository
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 _bearer = HTTPBearer(auto_error=False)

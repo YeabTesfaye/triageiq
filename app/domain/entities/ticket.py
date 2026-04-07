@@ -1,16 +1,16 @@
 """
 Ticket entity — support ticket with AI-enriched fields.
 """
+
 import uuid
 from datetime import datetime
-from typing import Any, Dict, Optional
-
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from typing import Any
 
 from app.domain.enums import TicketCategory, TicketPriority, TicketStatus
 from app.infrastructure.database import Base
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class Ticket(Base):
@@ -23,9 +23,7 @@ class Ticket(Base):
         Index("ix_tickets_priority", "priority"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="RESTRICT"),
@@ -33,11 +31,11 @@ class Ticket(Base):
     )
 
     message: Mapped[str] = mapped_column(Text, nullable=False)
-    category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    priority: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    ai_response: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    category: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    priority: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    ai_response: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Full raw AI JSON payload for debugging / re-processing
-    ai_raw: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    ai_raw: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     status: Mapped[str] = mapped_column(
         String(20),
@@ -62,11 +60,11 @@ class Ticket(Base):
     )
 
     @property
-    def category_enum(self) -> Optional[TicketCategory]:
+    def category_enum(self) -> TicketCategory | None:
         return TicketCategory(self.category) if self.category else None
 
     @property
-    def priority_enum(self) -> Optional[TicketPriority]:
+    def priority_enum(self) -> TicketPriority | None:
         return TicketPriority(self.priority) if self.priority else None
 
     @property

@@ -1,16 +1,16 @@
 """
 Admin schemas — request/response models for all admin endpoints.
 """
+
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
-
-from pydantic import BaseModel, Field
+from typing import Any
 
 from app.domain.enums import Role, TicketStatus, UserStatus
-
+from pydantic import BaseModel, Field
 
 # ── Pagination ─────────────────────────────────────────────────────────────────
+
 
 class PaginationMeta(BaseModel):
     total: int
@@ -22,6 +22,7 @@ class PaginationMeta(BaseModel):
 
 # ── User Management ────────────────────────────────────────────────────────────
 
+
 class AdminUserResponse(BaseModel):
     id: uuid.UUID
     email: str
@@ -29,9 +30,9 @@ class AdminUserResponse(BaseModel):
     role: str
     status: str
     is_verified: bool
-    last_login_at: Optional[datetime]
+    last_login_at: datetime | None
     failed_login_attempts: int
-    deleted_at: Optional[datetime]
+    deleted_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
@@ -40,11 +41,12 @@ class AdminUserResponse(BaseModel):
 
 class AdminUserDetailResponse(AdminUserResponse):
     """Extended profile with ticket summary stats."""
-    ticket_stats: Dict[str, Any] = Field(default_factory=dict)
+
+    ticket_stats: dict[str, Any] = Field(default_factory=dict)
 
 
 class AdminUserListResponse(BaseModel):
-    items: List[AdminUserResponse]
+    items: list[AdminUserResponse]
     meta: PaginationMeta
 
 
@@ -62,13 +64,14 @@ class ChangeStatusRequest(BaseModel):
 
 # ── Ticket Management ──────────────────────────────────────────────────────────
 
+
 class AdminTicketResponse(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
     message: str
-    category: Optional[str]
-    priority: Optional[str]
-    ai_response: Optional[str]
+    category: str | None
+    priority: str | None
+    ai_response: str | None
     status: str
     created_at: datetime
     updated_at: datetime
@@ -77,7 +80,7 @@ class AdminTicketResponse(BaseModel):
 
 
 class AdminTicketListResponse(BaseModel):
-    items: List[AdminTicketResponse]
+    items: list[AdminTicketResponse]
     meta: PaginationMeta
 
 
@@ -87,31 +90,33 @@ class AdminUpdateTicketStatusRequest(BaseModel):
 
 # ── Audit Logs ─────────────────────────────────────────────────────────────────
 
+
 class AuditLogResponse(BaseModel):
     id: uuid.UUID
-    actor_id: Optional[uuid.UUID]
+    actor_id: uuid.UUID | None
     actor_role: str
     action: str
     target_type: str
     target_id: uuid.UUID
-    before_state: Optional[Dict[str, Any]]
-    after_state: Optional[Dict[str, Any]]
-    ip_address: Optional[str]
-    user_agent: Optional[str]
+    before_state: dict[str, Any] | None
+    after_state: dict[str, Any] | None
+    ip_address: str | None
+    user_agent: str | None
     created_at: datetime
 
     model_config = {"from_attributes": True}
 
 
 class AuditLogListResponse(BaseModel):
-    items: List[AuditLogResponse]
+    items: list[AuditLogResponse]
     meta: PaginationMeta
 
 
 # ── Analytics ──────────────────────────────────────────────────────────────────
 
+
 class AnalyticsResponse(BaseModel):
     total_tickets: int
-    by_category: Dict[str, int]
-    by_priority: Dict[str, int]
-    by_status: Dict[str, int]
+    by_category: dict[str, int]
+    by_priority: dict[str, int]
+    by_status: dict[str, int]

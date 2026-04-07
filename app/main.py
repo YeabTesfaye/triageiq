@@ -10,12 +10,17 @@ Responsibilities:
 - Router registration under /api/v1
 - Health and readiness endpoints
 """
+
 import time
 import uuid
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI, Request, Response, status
+from app.config import get_settings
+from app.infrastructure.database import dispose_engine
+from app.infrastructure.redis_client import close_redis, get_redis
+from app.presentation.routers import admin, analytics, auth, ticket
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -23,11 +28,6 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
-
-from app.config import get_settings
-from app.infrastructure.database import dispose_engine
-from app.infrastructure.redis_client import close_redis, get_redis
-from app.presentation.routers import admin, analytics, auth, ticket
 
 # ── Structured Logging Setup ───────────────────────────────────────────────────
 
@@ -85,6 +85,7 @@ async def lifespan(app: FastAPI):
 
 
 # ── App Factory ────────────────────────────────────────────────────────────────
+
 
 def create_app() -> FastAPI:
     settings = get_settings()
@@ -182,9 +183,7 @@ def create_app() -> FastAPI:
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         if settings.ENV == "production":
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=31536000; includeSubDomains"
-            )
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         return response
 
     # ── Prometheus Metrics ─────────────────────────────────────────────────────
@@ -215,6 +214,7 @@ def create_app() -> FastAPI:
 
         try:
             from app.infrastructure.database import get_engine
+
             async with get_engine().connect() as conn:
                 await conn.execute(__import__("sqlalchemy").text("SELECT 1"))
             checks["database"] = "ok"

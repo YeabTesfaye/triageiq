@@ -9,12 +9,13 @@ Every state-mutating method:
 
 No DB calls or Redis calls outside repository/infra layers.
 """
+
 import uuid
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Any, Dict, Optional, Sequence, Tuple
+from typing import Any
 
 import structlog
-
 from app.domain.entities.audit_log import AuditLog
 from app.domain.entities.ticket import Ticket
 from app.domain.entities.user import User
@@ -33,12 +34,13 @@ _SESSION_CUTOFF_TTL = 7 * 24 * 60 * 60
 
 class AdminError(Exception):
     """Business rule violation in admin operations."""
+
     def __init__(self, message: str, code: str = "ADMIN_ERROR"):
         super().__init__(message)
         self.code = code
 
 
-def _user_snapshot(user: User) -> Dict[str, Any]:
+def _user_snapshot(user: User) -> dict[str, Any]:
     """Safe snapshot for audit log — excludes password_hash."""
     return {
         "id": str(user.id),
@@ -50,7 +52,7 @@ def _user_snapshot(user: User) -> Dict[str, Any]:
     }
 
 
-def _ticket_snapshot(ticket: Ticket) -> Dict[str, Any]:
+def _ticket_snapshot(ticket: Ticket) -> dict[str, Any]:
     return {
         "id": str(ticket.id),
         "status": ticket.status,
@@ -77,13 +79,13 @@ class AdminService:
     async def list_users(
         self,
         *,
-        role: Optional[Role] = None,
-        status: Optional[UserStatus] = None,
-        created_after: Optional[datetime] = None,
-        created_before: Optional[datetime] = None,
+        role: Role | None = None,
+        status: UserStatus | None = None,
+        created_after: datetime | None = None,
+        created_before: datetime | None = None,
         limit: int = 20,
         offset: int = 0,
-    ) -> Tuple[Sequence[User], int]:
+    ) -> tuple[Sequence[User], int]:
         return await self._users.list_users(
             role=role,
             status=status,
@@ -93,9 +95,7 @@ class AdminService:
             offset=offset,
         )
 
-    async def get_user_detail(
-        self, user_id: uuid.UUID
-    ) -> Tuple[User, Dict[str, Any]]:
+    async def get_user_detail(self, user_id: uuid.UUID) -> tuple[User, dict[str, Any]]:
         user = await self._users.get_by_id(user_id)
         if user is None:
             raise AdminError("User not found", code="USER_NOT_FOUND")
@@ -188,10 +188,7 @@ class AdminService:
             raise AdminError("Cannot change your own status", code="SELF_MODIFY")
 
         # ADMIN cannot act on SUPERADMIN
-        if (
-            target.role_enum == Role.SUPERADMIN
-            and actor.role_enum != Role.SUPERADMIN
-        ):
+        if target.role_enum == Role.SUPERADMIN and actor.role_enum != Role.SUPERADMIN:
             raise AdminError(
                 "Insufficient privileges to modify a SUPERADMIN",
                 code="FORBIDDEN_TARGET",
@@ -205,9 +202,7 @@ class AdminService:
         # Immediately invalidate all sessions if suspending or banning
         if new_status in (UserStatus.SUSPENDED, UserStatus.BANNED):
             await self._tokens.revoke_all_for_user(target_user_id)
-            await blacklist_all_user_tokens(
-                str(target_user_id), _SESSION_CUTOFF_TTL
-            )
+            await blacklist_all_user_tokens(str(target_user_id), _SESSION_CUTOFF_TTL)
             log.info(
                 "admin_sessions_invalidated",
                 target_id=str(target_user_id),
@@ -304,7 +299,7 @@ class AdminService:
         sort_dir: str = "desc",
         limit: int = 20,
         offset: int = 0,
-    ) -> Tuple[Sequence[Ticket], int]:
+    ) -> tuple[Sequence[Ticket], int]:
         return await self._tickets.list_all(
             category=category,
             priority=priority,
@@ -388,14 +383,14 @@ class AdminService:
     async def list_audit_logs(
         self,
         *,
-        actor_id: Optional[uuid.UUID] = None,
-        target_type: Optional[str] = None,
-        action: Optional[str] = None,
-        created_after: Optional[datetime] = None,
-        created_before: Optional[datetime] = None,
+        actor_id: uuid.UUID | None = None,
+        target_type: str | None = None,
+        action: str | None = None,
+        created_after: datetime | None = None,
+        created_before: datetime | None = None,
         limit: int = 50,
         offset: int = 0,
-    ) -> Tuple[Sequence[AuditLog], int]:
+    ) -> tuple[Sequence[AuditLog], int]:
         return await self._audit.list_logs(
             actor_id=actor_id,
             target_type=target_type,

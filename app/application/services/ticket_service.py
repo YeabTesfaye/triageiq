@@ -2,11 +2,11 @@
 Ticket service — business logic for user-facing ticket operations.
 Orchestrates: ticket creation → AI analysis → persistence.
 """
+
 import uuid
-from typing import Optional, Sequence, Tuple
+from collections.abc import Sequence
 
 import structlog
-
 from app.domain.entities.ticket import Ticket
 from app.infrastructure.ai.openai_client import AIServiceError, get_openai_client
 from app.repositories.ticket_repository import TicketRepository
@@ -32,7 +32,7 @@ class TicketService:
         """
         ai_client = get_openai_client()
         ai_analysis = None
-        ai_error: Optional[AIServiceError] = None
+        ai_error: AIServiceError | None = None
 
         try:
             ai_analysis = await ai_client.analyze_ticket(message)
@@ -65,16 +65,14 @@ class TicketService:
         *,
         limit: int = 20,
         offset: int = 0,
-    ) -> Tuple[Sequence[Ticket], int]:
-        return await self._tickets.list_by_user(
-            user_id, limit=limit, offset=offset
-        )
+    ) -> tuple[Sequence[Ticket], int]:
+        return await self._tickets.list_by_user(user_id, limit=limit, offset=offset)
 
     async def get_ticket_for_owner(
         self,
         ticket_id: uuid.UUID,
         user_id: uuid.UUID,
-    ) -> Optional[Ticket]:
+    ) -> Ticket | None:
         """Enforce ownership — returns None if ticket doesn't exist or wrong owner."""
         return await self._tickets.get_by_id_and_user(ticket_id, user_id)
 

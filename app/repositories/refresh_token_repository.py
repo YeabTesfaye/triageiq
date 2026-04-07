@@ -2,17 +2,16 @@
 RefreshToken repository — hashed token storage, lookup, and rotation.
 Raw tokens are NEVER stored; only SHA-256 hashes.
 """
+
 import hashlib
 import secrets
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Optional
-
-from sqlalchemy import and_, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import UTC, datetime, timedelta
 
 from app.config import get_settings
 from app.domain.entities.audit_log import RefreshToken
+from sqlalchemy import and_, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 def _hash_token(raw_token: str) -> str:
@@ -34,13 +33,11 @@ class RefreshTokenRepository:
         *,
         user_id: uuid.UUID,
         raw_token: str,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
     ) -> RefreshToken:
         settings = get_settings()
-        expires_at = datetime.now(timezone.utc) + timedelta(
-            days=settings.REFRESH_TOKEN_EXPIRE_DAYS
-        )
+        expires_at = datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
         token = RefreshToken(
             user_id=user_id,
             token_hash=_hash_token(raw_token),
@@ -52,12 +49,10 @@ class RefreshTokenRepository:
         await self._session.flush()
         return token
 
-    async def get_by_raw_token(self, raw_token: str) -> Optional[RefreshToken]:
+    async def get_by_raw_token(self, raw_token: str) -> RefreshToken | None:
         """Look up a token by its raw value (compares against stored hash)."""
         token_hash = _hash_token(raw_token)
-        stmt = select(RefreshToken).where(
-            RefreshToken.token_hash == token_hash
-        )
+        stmt = select(RefreshToken).where(RefreshToken.token_hash == token_hash)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -66,13 +61,13 @@ class RefreshTokenRepository:
         stmt = (
             update(RefreshToken)
             .where(RefreshToken.id == token_id)
-            .values(revoked_at=datetime.now(timezone.utc))
+            .values(revoked_at=datetime.now(UTC))
         )
         await self._session.execute(stmt)
 
     async def revoke_all_for_user(self, user_id: uuid.UUID) -> int:
         """Revoke all active tokens for a user (e.g., on suspension/ban)."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         stmt = (
             update(RefreshToken)
             .where(

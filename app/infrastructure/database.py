@@ -2,6 +2,7 @@
 Database infrastructure — async engine, session factory, base model.
 Uses asyncpg driver with proper connection pooling.
 """
+
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -19,6 +20,7 @@ class Base(AsyncAttrs, DeclarativeBase):
     Declarative base for all ORM models.
     AsyncAttrs mixin allows awaiting lazy-loaded relationships.
     """
+
     pass
 
 
@@ -31,6 +33,7 @@ def get_engine():
     global _engine
     if _engine is None:
         from app.config import get_settings
+
         settings = get_settings()
         _engine = create_async_engine(
             settings.DATABASE_URL,

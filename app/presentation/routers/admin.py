@@ -4,18 +4,14 @@ Admin router — privileged endpoints for user and ticket management.
 RBAC is enforced at the Depends() level — never inside route handlers.
 Every state-mutating endpoint writes an audit log entry (handled by AdminService).
 """
+
 import uuid
 from datetime import datetime
-from typing import Optional
-
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.admin_service import AdminError, AdminService
 from app.dependencies import (
     PaginationParams,
     get_client_ip,
-    get_current_user,
     get_user_agent,
     require_roles,
 )
@@ -39,6 +35,8 @@ from app.repositories.audit_log_repository import AuditLogRepository
 from app.repositories.refresh_token_repository import RefreshTokenRepository
 from app.repositories.ticket_repository import TicketRepository
 from app.repositories.user_repository import UserRepository
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -66,16 +64,17 @@ def _pagination_meta(total: int, limit: int, offset: int) -> PaginationMeta:
 
 # ── User Management ────────────────────────────────────────────────────────────
 
+
 @router.get(
     "/users",
     response_model=AdminUserListResponse,
     summary="List all users with filters (ADMIN+)",
 )
 async def list_users(
-    role: Optional[Role] = Query(None),
-    user_status: Optional[UserStatus] = Query(None, alias="status"),
-    created_after: Optional[datetime] = Query(None),
-    created_before: Optional[datetime] = Query(None),
+    role: Role | None = Query(None),
+    user_status: UserStatus | None = Query(None, alias="status"),
+    created_after: datetime | None = Query(None),
+    created_before: datetime | None = Query(None),
     pagination: PaginationParams = Depends(),
     _actor: User = Depends(require_roles(Role.ADMIN, Role.SUPERADMIN)),
     service: AdminService = Depends(_get_admin_service),
@@ -143,9 +142,7 @@ async def change_user_role(
             "FORBIDDEN_TARGET": status.HTTP_403_FORBIDDEN,
             "SELF_MODIFY": status.HTTP_400_BAD_REQUEST,
         }
-        raise HTTPException(
-            code_map.get(e.code, status.HTTP_400_BAD_REQUEST), detail=str(e)
-        )
+        raise HTTPException(code_map.get(e.code, status.HTTP_400_BAD_REQUEST), detail=str(e))
 
 
 @router.patch(
@@ -175,9 +172,7 @@ async def change_user_status(
             "FORBIDDEN_TARGET": status.HTTP_403_FORBIDDEN,
             "SELF_MODIFY": status.HTTP_400_BAD_REQUEST,
         }
-        raise HTTPException(
-            code_map.get(e.code, status.HTTP_400_BAD_REQUEST), detail=str(e)
-        )
+        raise HTTPException(code_map.get(e.code, status.HTTP_400_BAD_REQUEST), detail=str(e))
 
 
 @router.delete(
@@ -204,12 +199,11 @@ async def delete_user(
             "FORBIDDEN_TARGET": status.HTTP_403_FORBIDDEN,
             "SELF_DELETE": status.HTTP_400_BAD_REQUEST,
         }
-        raise HTTPException(
-            code_map.get(e.code, status.HTTP_400_BAD_REQUEST), detail=str(e)
-        )
+        raise HTTPException(code_map.get(e.code, status.HTTP_400_BAD_REQUEST), detail=str(e))
 
 
 # ── Ticket Management ──────────────────────────────────────────────────────────
+
 
 @router.get(
     "/tickets",
@@ -217,18 +211,16 @@ async def delete_user(
     summary="List all tickets across all users (MODERATOR+)",
 )
 async def list_tickets(
-    category: Optional[TicketCategory] = Query(None),
-    priority: Optional[TicketPriority] = Query(None),
-    ticket_status: Optional[TicketStatus] = Query(None, alias="status"),
-    user_id: Optional[uuid.UUID] = Query(None),
-    created_after: Optional[datetime] = Query(None),
-    created_before: Optional[datetime] = Query(None),
+    category: TicketCategory | None = Query(None),
+    priority: TicketPriority | None = Query(None),
+    ticket_status: TicketStatus | None = Query(None, alias="status"),
+    user_id: uuid.UUID | None = Query(None),
+    created_after: datetime | None = Query(None),
+    created_before: datetime | None = Query(None),
     sort_by: str = Query("created_at", pattern="^(created_at|updated_at|priority|status)$"),
     sort_dir: str = Query("desc", pattern="^(asc|desc)$"),
     pagination: PaginationParams = Depends(),
-    _actor: User = Depends(
-        require_roles(Role.MODERATOR, Role.ADMIN, Role.SUPERADMIN)
-    ),
+    _actor: User = Depends(require_roles(Role.MODERATOR, Role.ADMIN, Role.SUPERADMIN)),
     service: AdminService = Depends(_get_admin_service),
 ):
     tickets, total = await service.list_tickets(
@@ -258,9 +250,7 @@ async def update_ticket_status(
     ticket_id: uuid.UUID,
     body: AdminUpdateTicketStatusRequest,
     request: Request,
-    actor: User = Depends(
-        require_roles(Role.MODERATOR, Role.ADMIN, Role.SUPERADMIN)
-    ),
+    actor: User = Depends(require_roles(Role.MODERATOR, Role.ADMIN, Role.SUPERADMIN)),
     service: AdminService = Depends(_get_admin_service),
 ):
     try:
@@ -304,17 +294,18 @@ async def delete_ticket(
 
 # ── Audit Logs ─────────────────────────────────────────────────────────────────
 
+
 @router.get(
     "/audit-logs",
     response_model=AuditLogListResponse,
     summary="View audit trail (SUPERADMIN only)",
 )
 async def list_audit_logs(
-    actor_id: Optional[uuid.UUID] = Query(None),
-    target_type: Optional[str] = Query(None),
-    action: Optional[str] = Query(None),
-    created_after: Optional[datetime] = Query(None),
-    created_before: Optional[datetime] = Query(None),
+    actor_id: uuid.UUID | None = Query(None),
+    target_type: str | None = Query(None),
+    action: str | None = Query(None),
+    created_after: datetime | None = Query(None),
+    created_before: datetime | None = Query(None),
     pagination: PaginationParams = Depends(),
     _actor: User = Depends(require_roles(Role.SUPERADMIN)),
     service: AdminService = Depends(_get_admin_service),

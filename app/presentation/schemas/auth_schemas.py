@@ -2,13 +2,12 @@
 Auth schemas — request/response Pydantic models for auth endpoints.
 These are the API contract; never expose internal models directly.
 """
+
 import uuid
 from datetime import datetime
-from typing import Optional
-
-from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.infrastructure.security.password_handler import validate_password_strength
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class RegisterRequest(BaseModel):
@@ -52,7 +51,7 @@ class UserProfileResponse(BaseModel):
     role: str
     status: str
     is_verified: bool
-    last_login_at: Optional[datetime]
+    last_login_at: datetime | None
     created_at: datetime
 
     model_config = {"from_attributes": True}

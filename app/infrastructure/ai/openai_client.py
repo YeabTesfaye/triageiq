@@ -2,23 +2,24 @@
 OpenAI infrastructure — async client with retry, timeout, and strict output.
 Only this module may call the OpenAI API. Services must go through this interface.
 """
+
 import asyncio
 import logging
-from typing import Optional
-
-from openai import AsyncOpenAI, APITimeoutError, APIConnectionError, RateLimitError
-from pydantic import BaseModel, ValidationError
 
 from app.config import get_settings
 from app.domain.enums import TicketCategory, TicketPriority
+from openai import APIConnectionError, APITimeoutError, AsyncOpenAI, RateLimitError
+from pydantic import BaseModel, ValidationError
 
 logger = logging.getLogger(__name__)
 
 
 # ── Output Schema ──────────────────────────────────────────────────────────────
 
+
 class AITicketAnalysis(BaseModel):
     """Strict Pydantic model that the AI MUST conform to."""
+
     category: TicketCategory
     priority: TicketPriority
     ai_response: str
@@ -27,6 +28,7 @@ class AITicketAnalysis(BaseModel):
 
 class AIServiceError(Exception):
     """Raised when AI is unavailable after all retries."""
+
     def __init__(self, message: str, retry_after: int = 30):
         super().__init__(message)
         self.retry_after = retry_after
@@ -34,31 +36,27 @@ class AIServiceError(Exception):
 
 # ── System Prompt ──────────────────────────────────────────────────────────────
 
-_SYSTEM_PROMPT = """You are a support ticket triage assistant. Analyze the user's 
-support message and return ONLY valid JSON (no markdown, no explanation) matching 
+_SYSTEM_PROMPT = """You are a support ticket triage assistant. Analyze the user's
+support message and return ONLY valid JSON (no markdown, no explanation) matching
 this exact schema:
-
 {
   "category": "<billing|technical|general>",
   "priority": "<low|medium|high>",
   "ai_response": "<A helpful, professional response to the user (2-4 sentences)>",
   "confidence": <float between 0.0 and 1.0>
 }
-
 Categorization rules:
 - billing: payment issues, refunds, subscriptions, invoices, pricing
 - technical: bugs, errors, performance, integrations, API issues
 - general: feature requests, account info, other questions
-
 Priority rules:
 - high: service outage, data loss, payment failure, security issue
 - medium: feature broken, significant inconvenience, billing discrepancy
 - low: general question, minor issue, feature request
-
 Return ONLY the JSON object. No surrounding text."""
 
-
 # ── Client ─────────────────────────────────────────────────────────────────────
+
 
 class OpenAIClient:
     """
@@ -85,11 +83,11 @@ class OpenAIClient:
         Raises:
             AIServiceError: If all retries fail or response is invalid.
         """
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
 
         for attempt in range(self._max_retries + 1):
             if attempt > 0:
-                backoff = 2 ** attempt  # 2s, 4s
+                backoff = 2**attempt  # 2s, 4s
                 logger.warning(
                     "Retrying OpenAI call",
                     extra={"attempt": attempt, "backoff_seconds": backoff},
@@ -152,7 +150,7 @@ class OpenAIClient:
 
 # ── Singleton ──────────────────────────────────────────────────────────────────
 
-_client_instance: Optional[OpenAIClient] = None
+_client_instance: OpenAIClient | None = None
 
 
 def get_openai_client() -> OpenAIClient:

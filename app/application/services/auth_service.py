@@ -7,20 +7,18 @@ Rules:
 - No external API calls
 - All secrets via infrastructure layer
 """
+
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Optional, Tuple
+from datetime import UTC, datetime, timedelta
 
 import structlog
-
 from app.config import get_settings
 from app.domain.entities.user import User
 from app.domain.enums import Role, UserStatus
 from app.infrastructure.redis_client import (
     blacklist_access_token,
-    blacklist_all_user_tokens,
-    increment_failed_login,
     get_failed_login_count,
+    increment_failed_login,
     reset_failed_login,
 )
 from app.infrastructure.security.jwt_handler import (
@@ -43,6 +41,7 @@ log = structlog.get_logger(__name__)
 
 class AuthError(Exception):
     """Domain-level auth failure. Routers map this to HTTP responses."""
+
     def __init__(self, message: str, code: str = "AUTH_ERROR"):
         super().__init__(message)
         self.code = code
@@ -97,7 +96,7 @@ class AuthService:
         password: str,
         ip_address: str,
         user_agent: str,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """
         Authenticate a user and issue token pair.
 
@@ -130,10 +129,10 @@ class AuthService:
             await increment_failed_login(ip_address)
             if user:
                 # Track per-user failures for account lockout
-                lock_until: Optional[datetime] = None
+                lock_until: datetime | None = None
                 user_failures = user.failed_login_attempts + 1
                 if user_failures >= settings.MAX_FAILED_LOGIN_ATTEMPTS:
-                    lock_until = datetime.now(timezone.utc) + timedelta(
+                    lock_until = datetime.now(UTC) + timedelta(
                         minutes=settings.ACCOUNT_LOCK_MINUTES
                     )
                     log.warning(
@@ -164,9 +163,7 @@ class AuthService:
         await reset_failed_login(ip_address)
         await self._users.record_successful_login(user.id)
 
-        access_token, _jti, _exp = create_access_token(
-            user_id=str(user.id), role=user.role
-        )
+        access_token, _jti, _exp = create_access_token(user_id=str(user.id), role=user.role)
         raw_refresh = generate_raw_token()
         await self._tokens.create(
             user_id=user.id,
@@ -184,7 +181,7 @@ class AuthService:
         raw_refresh_token: str,
         ip_address: str,
         user_agent: str,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """
         Rotate refresh token — single-use enforcement.
         Old token is revoked; new access + refresh pair issued.
@@ -202,9 +199,7 @@ class AuthService:
         await self._tokens.revoke(token_record.id)
 
         # Issue new pair
-        access_token, _jti, _exp = create_access_token(
-            user_id=str(user.id), role=user.role
-        )
+        access_token, _jti, _exp = create_access_token(user_id=str(user.id), role=user.role)
         new_raw_refresh = generate_raw_token()
         await self._tokens.create(
             user_id=user.id,

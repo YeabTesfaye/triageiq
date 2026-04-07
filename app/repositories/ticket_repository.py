@@ -1,15 +1,16 @@
 """
 Ticket repository — all database operations for the Ticket entity.
 """
-import uuid
-from datetime import datetime
-from typing import Any, Dict, Optional, Sequence
 
-from sqlalchemy import and_, func, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+import uuid
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
 
 from app.domain.entities.ticket import Ticket
 from app.domain.enums import TicketCategory, TicketPriority, TicketStatus
+from sqlalchemy import and_, func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class TicketRepository:
@@ -21,10 +22,10 @@ class TicketRepository:
         *,
         user_id: uuid.UUID,
         message: str,
-        category: Optional[TicketCategory] = None,
-        priority: Optional[TicketPriority] = None,
-        ai_response: Optional[str] = None,
-        ai_raw: Optional[Dict[str, Any]] = None,
+        category: TicketCategory | None = None,
+        priority: TicketPriority | None = None,
+        ai_response: str | None = None,
+        ai_raw: dict[str, Any] | None = None,
     ) -> Ticket:
         ticket = Ticket(
             user_id=user_id,
@@ -39,18 +40,14 @@ class TicketRepository:
         await self._session.flush()
         return ticket
 
-    async def get_by_id(self, ticket_id: uuid.UUID) -> Optional[Ticket]:
+    async def get_by_id(self, ticket_id: uuid.UUID) -> Ticket | None:
         stmt = select(Ticket).where(Ticket.id == ticket_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_id_and_user(
-        self, ticket_id: uuid.UUID, user_id: uuid.UUID
-    ) -> Optional[Ticket]:
+    async def get_by_id_and_user(self, ticket_id: uuid.UUID, user_id: uuid.UUID) -> Ticket | None:
         """Enforce ownership — returns None if not owner."""
-        stmt = select(Ticket).where(
-            and_(Ticket.id == ticket_id, Ticket.user_id == user_id)
-        )
+        stmt = select(Ticket).where(and_(Ticket.id == ticket_id, Ticket.user_id == user_id))
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -67,12 +64,12 @@ class TicketRepository:
     async def list_all(
         self,
         *,
-        category: Optional[TicketCategory] = None,
-        priority: Optional[TicketPriority] = None,
-        status: Optional[TicketStatus] = None,
-        user_id: Optional[uuid.UUID] = None,
-        created_after: Optional[datetime] = None,
-        created_before: Optional[datetime] = None,
+        category: TicketCategory | None = None,
+        priority: TicketPriority | None = None,
+        status: TicketStatus | None = None,
+        user_id: uuid.UUID | None = None,
+        created_after: datetime | None = None,
+        created_before: datetime | None = None,
         sort_by: str = "created_at",
         sort_dir: str = "desc",
         limit: int = 20,
@@ -111,9 +108,7 @@ class TicketRepository:
     ) -> tuple[Sequence[Ticket], int]:
         where_clause = and_(*conditions) if conditions else True  # type: ignore
 
-        count_stmt = (
-            select(func.count()).select_from(Ticket).where(where_clause)
-        )
+        count_stmt = select(func.count()).select_from(Ticket).where(where_clause)
         total = (await self._session.execute(count_stmt)).scalar_one()
 
         # Safe column mapping — avoid SQL injection from sort_by param
@@ -126,20 +121,15 @@ class TicketRepository:
         sort_col = sortable_columns.get(sort_by, Ticket.created_at)
         order = sort_col.desc() if sort_dir == "desc" else sort_col.asc()
 
-        stmt = (
-            select(Ticket).where(where_clause).order_by(order).limit(limit).offset(offset)
-        )
+        stmt = select(Ticket).where(where_clause).order_by(order).limit(limit).offset(offset)
         rows = (await self._session.execute(stmt)).scalars().all()
         return rows, total
 
-    async def update_status(
-        self, ticket_id: uuid.UUID, status: TicketStatus
-    ) -> Optional[Ticket]:
-        from datetime import timezone
+    async def update_status(self, ticket_id: uuid.UUID, status: TicketStatus) -> Ticket | None:
         stmt = (
             update(Ticket)
             .where(Ticket.id == ticket_id)
-            .values(status=status.value, updated_at=datetime.now(timezone.utc))
+            .values(status=status.value, updated_at=datetime.now(UTC))
             .returning(Ticket)
         )
         result = await self._session.execute(stmt)
@@ -148,11 +138,12 @@ class TicketRepository:
     async def delete(self, ticket_id: uuid.UUID) -> bool:
         """Hard delete. Returns True if a row was deleted."""
         from sqlalchemy import delete as sa_delete
+
         stmt = sa_delete(Ticket).where(Ticket.id == ticket_id)
         result = await self._session.execute(stmt)
         return result.rowcount > 0
 
-    async def get_stats_for_user(self, user_id: uuid.UUID) -> Dict[str, Any]:
+    async def get_stats_for_user(self, user_id: uuid.UUID) -> dict[str, Any]:
         """Per-user ticket statistics."""
         stmt = (
             select(
@@ -163,39 +154,24 @@ class TicketRepository:
             .group_by(Ticket.status)
         )
         rows = (await self._session.execute(stmt)).all()
-        stats: Dict[str, Any] = {"total": 0, "by_status": {}}
+        stats: dict[str, Any] = {"total": 0, "by_status": {}}
         for row in rows:
             stats["by_status"][row.status] = row.total
             stats["total"] += row.total
         return stats
 
-    async def get_global_stats(self) -> Dict[str, Any]:
+    async def get_global_stats(self) -> dict[str, Any]:
         """Global analytics for admin view."""
         total_stmt = select(func.count(Ticket.id))
         total = (await self._session.execute(total_stmt)).scalar_one()
 
-        by_category_stmt = (
-            select(Ticket.category, func.count(Ticket.id))
-            .group_by(Ticket.category)
-        )
-        by_priority_stmt = (
-            select(Ticket.priority, func.count(Ticket.id))
-            .group_by(Ticket.priority)
-        )
-        by_status_stmt = (
-            select(Ticket.status, func.count(Ticket.id))
-            .group_by(Ticket.status)
-        )
+        by_category_stmt = select(Ticket.category, func.count(Ticket.id)).group_by(Ticket.category)
+        by_priority_stmt = select(Ticket.priority, func.count(Ticket.id)).group_by(Ticket.priority)
+        by_status_stmt = select(Ticket.status, func.count(Ticket.id)).group_by(Ticket.status)
 
-        by_cat = dict(
-            (await self._session.execute(by_category_stmt)).all()
-        )
-        by_pri = dict(
-            (await self._session.execute(by_priority_stmt)).all()
-        )
-        by_sta = dict(
-            (await self._session.execute(by_status_stmt)).all()
-        )
+        by_cat = dict((await self._session.execute(by_category_stmt)).all())
+        by_pri = dict((await self._session.execute(by_priority_stmt)).all())
+        by_sta = dict((await self._session.execute(by_status_stmt)).all())
 
         return {
             "total": total,

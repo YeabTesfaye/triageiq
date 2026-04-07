@@ -2,19 +2,20 @@
 Redis infrastructure — async client for token blacklisting and rate limiting.
 All keys are namespaced with a prefix to avoid collisions.
 """
+
 import logging
-from typing import Optional
 
 import redis.asyncio as aioredis
 from redis.asyncio import Redis
 
 logger = logging.getLogger(__name__)
 
-_redis_client: Optional[Redis] = None
+_redis_client: Redis | None = None
 
 
 def _prefix(key: str) -> str:
     from app.config import get_settings
+
     return f"{get_settings().REDIS_KEY_PREFIX}{key}"
 
 
@@ -23,6 +24,7 @@ async def get_redis() -> Redis:
     global _redis_client
     if _redis_client is None:
         from app.config import get_settings
+
         settings = get_settings()
         _redis_client = aioredis.from_url(
             settings.REDIS_URL,
@@ -71,12 +73,13 @@ async def blacklist_all_user_tokens(user_id: str, ttl_seconds: int) -> None:
     timestamp will be rejected.
     """
     import time
+
     client = await get_redis()
     key = _prefix(f"{USER_TOKENS_PREFIX}{user_id}")
     await client.setex(key, ttl_seconds, str(int(time.time())))
 
 
-async def get_user_token_cutoff(user_id: str) -> Optional[int]:
+async def get_user_token_cutoff(user_id: str) -> int | None:
     """Return the UNIX timestamp before which all tokens are invalid."""
     client = await get_redis()
     key = _prefix(f"{USER_TOKENS_PREFIX}{user_id}")
