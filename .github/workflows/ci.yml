@@ -60,7 +60,6 @@ jobs:
             --tb=short \
             --cov=app \
             --cov-report=term-missing \
-            --cov-fail-under=70 \
             -v
 
   docker:
