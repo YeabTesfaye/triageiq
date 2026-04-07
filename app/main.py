@@ -1,19 +1,7 @@
-"""
-TriageIQ — FastAPI application entry point.
-
-Responsibilities:
-- Lifespan management (DB pool, Redis connection)
-- Global middleware (request_id, structured logging, security headers)
-- CORS with explicit origin allowlist
-- Rate limiting via slowapi
-- Prometheus metrics
-- Router registration under /api/v1
-- Health and readiness endpoints
-"""
-
 import time
 import uuid
 from contextlib import asynccontextmanager
+from typing import Awaitable, Union
 
 import structlog
 from app.config import get_settings
@@ -22,7 +10,7 @@ from app.infrastructure.redis_client import close_redis, get_redis
 from app.presentation.routers import admin, analytics, auth, ticket
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -40,7 +28,7 @@ structlog.configure(
         structlog.processors.format_exc_info,
         structlog.processors.JSONRenderer(),
     ],
-    wrapper_class=structlog.make_filtering_bound_logger(20),  # INFO
+    wrapper_class=structlog.make_filtering_bound_logger(20),
     context_class=dict,
     logger_factory=structlog.PrintLoggerFactory(),
     cache_logger_on_first_use=True,
@@ -55,8 +43,15 @@ limiter = Limiter(
     default_limits=["100/minute"],
 )
 
-# ── Lifespan ───────────────────────────────────────────────────────────────────
+# ── Properly typed rate limit handler ──────────────────────────────────────────
 
+async def rate_limit_handler(
+    request: Request, exc: Exception
+) -> Union[Response, Awaitable[Response]]:
+    return await _rate_limit_exceeded_handler(request, exc)  # type: ignore
+
+
+# ── Lifespan ───────────────────────────────────────────────────────────────────
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -71,12 +66,16 @@ async def lifespan(app: FastAPI):
     # Warm up Redis connection
     try:
         redis = await get_redis()
-        await redis.ping()
+        result = redis.ping()
+
+        if hasattr(result, "__await__"):
+            await result
+
         log.info("redis_connected")
     except Exception as e:
         log.error("redis_connection_failed", error=str(e))
 
-    yield  # Application runs here
+    yield
 
     log.info("shutdown_started")
     await dispose_engine()
@@ -85,7 +84,6 @@ async def lifespan(app: FastAPI):
 
 
 # ── App Factory ────────────────────────────────────────────────────────────────
-
 
 def create_app() -> FastAPI:
     settings = get_settings()
@@ -104,7 +102,8 @@ def create_app() -> FastAPI:
         swagger_ui_parameters={"persistAuthorization": True},
     )
 
-    # ── Security Scheme for Swagger ────────────────────────────────────────────
+    # ── OpenAPI Security ───────────────────────────────────────────────────────
+
     from fastapi.openapi.utils import get_openapi
 
     def custom_openapi():
@@ -123,7 +122,6 @@ def create_app() -> FastAPI:
                 "bearerFormat": "JWT",
             }
         }
-        # Apply security globally
         for path in schema["paths"].values():
             for operation in path.values():
                 operation.setdefault("security", [{"BearerAuth": []}])
@@ -133,9 +131,10 @@ def create_app() -> FastAPI:
     app.openapi = custom_openapi  # type: ignore
 
     # ── CORS ───────────────────────────────────────────────────────────────────
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins,  # no wildcard
+        allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
@@ -143,17 +142,18 @@ def create_app() -> FastAPI:
     )
 
     # ── Rate Limiting ──────────────────────────────────────────────────────────
+
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
     app.add_middleware(SlowAPIMiddleware)
 
-    # ── Request ID + Structured Logging Middleware ─────────────────────────────
+    # ── Request Context Middleware ─────────────────────────────────────────────
+
     @app.middleware("http")
     async def request_context_middleware(request: Request, call_next):
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
         start_time = time.perf_counter()
 
-        # Bind request context to all log lines within this request
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(
             request_id=request_id,
@@ -174,7 +174,8 @@ def create_app() -> FastAPI:
         )
         return response
 
-    # ── Security Headers Middleware ────────────────────────────────────────────
+    # ── Security Headers ───────────────────────────────────────────────────────
+
     @app.middleware("http")
     async def security_headers_middleware(request: Request, call_next):
         response = await call_next(request)
@@ -183,10 +184,13 @@ def create_app() -> FastAPI:
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         if settings.ENV == "production":
-            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
         return response
 
-    # ── Prometheus Metrics ─────────────────────────────────────────────────────
+    # ── Metrics ────────────────────────────────────────────────────────────────
+
     if settings.ENABLE_METRICS:
         Instrumentator(
             should_group_status_codes=False,
@@ -196,20 +200,21 @@ def create_app() -> FastAPI:
         ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
     # ── Routers ────────────────────────────────────────────────────────────────
+
     api_prefix = "/api/v1"
     app.include_router(auth.router, prefix=api_prefix)
     app.include_router(ticket.router, prefix=api_prefix)
     app.include_router(admin.router, prefix=api_prefix)
     app.include_router(analytics.router, prefix=api_prefix)
 
-    # ── Health Endpoints ───────────────────────────────────────────────────────
+    # ── Health ─────────────────────────────────────────────────────────────────
+
     @app.get("/health", include_in_schema=False)
     async def health():
         return {"status": "ok", "version": settings.APP_VERSION}
 
     @app.get("/readiness", include_in_schema=False)
     async def readiness():
-        """Check DB and Redis connectivity."""
         checks = {}
 
         try:
@@ -224,16 +229,28 @@ def create_app() -> FastAPI:
 
         try:
             redis = await get_redis()
-            await redis.ping()
+            result = redis.ping()
+
+            if hasattr(result, "__await__"):
+                await result
+
             checks["redis"] = "ok"
         except Exception as e:
             log.error("readiness_redis_failed", error=str(e))
             checks["redis"] = "error"
 
         all_ok = all(v == "ok" for v in checks.values())
+
         return JSONResponse(
-            status_code=status.HTTP_200_OK if all_ok else status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={"status": "ok" if all_ok else "degraded", "checks": checks},
+            status_code=(
+                status.HTTP_200_OK
+                if all_ok
+                else status.HTTP_503_SERVICE_UNAVAILABLE
+            ),
+            content={
+                "status": "ok" if all_ok else "degraded",
+                "checks": checks,
+            },
         )
 
     return app

@@ -1,18 +1,18 @@
-"""initial schema
+"""clean schema
 
-Revision ID: 513d6860a8a7
+Revision ID: 7bedc6b97bb0
 Revises: 
-Create Date: 2026-04-06 12:03:10.776231
+Create Date: 2026-04-07 16:21:50.229112
 
 """
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+
 
 # revision identifiers, used by Alembic.
-revision: str = '513d6860a8a7'
+revision: str = '7bedc6b97bb0'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -50,8 +50,8 @@ def upgrade() -> None:
     sa.Column('action', sa.String(length=100), nullable=False),
     sa.Column('target_type', sa.String(length=50), nullable=False),
     sa.Column('target_id', sa.UUID(), nullable=False),
-    sa.Column('before_state', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-    sa.Column('after_state', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+    sa.Column('before_state', sa.UUID(), nullable=True),
+    sa.Column('after_state', sa.UUID(), nullable=True),
     sa.Column('ip_address', sa.String(length=45), nullable=True),
     sa.Column('user_agent', sa.String(length=512), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
@@ -84,7 +84,7 @@ def upgrade() -> None:
     sa.Column('category', sa.String(length=50), nullable=True),
     sa.Column('priority', sa.String(length=20), nullable=True),
     sa.Column('ai_response', sa.Text(), nullable=True),
-    sa.Column('ai_raw', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+    sa.Column('ai_raw', sa.UUID(), nullable=True),
     sa.Column('status', sa.String(length=20), server_default='open', nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
