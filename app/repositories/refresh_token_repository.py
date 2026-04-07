@@ -2,7 +2,6 @@
 RefreshToken repository — hashed token storage, lookup, and rotation.
 Raw tokens are NEVER stored; only SHA-256 hashes.
 """
-
 import hashlib
 import secrets
 import uuid
@@ -11,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 from app.config import get_settings
 from app.domain.entities.audit_log import RefreshToken
 from sqlalchemy import and_, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -80,4 +80,5 @@ class RefreshTokenRepository:
             .values(revoked_at=now)
         )
         result = await self._session.execute(stmt)
+        assert isinstance(result, CursorResult)
         return result.rowcount

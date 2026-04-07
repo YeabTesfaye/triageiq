@@ -10,10 +10,8 @@ import pytest
 from app.application.services.admin_service import AdminError, AdminService
 from app.application.services.ticket_service import TicketService
 from app.domain.enums import AuditAction, Role, TicketCategory, TicketPriority, TicketStatus, UserStatus
-from app.domain.enums import (
-    AuditAction, Role, TicketCategory, TicketPriority, TicketStatus, UserStatus
-)
 from app.infrastructure.ai.openai_client import AIServiceError, AITicketAnalysis
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # HELPERS
@@ -105,13 +103,11 @@ class TestTicketService:
     async def test_get_ticket_enforces_ownership(self):
         ticket_repo = AsyncMock()
         ticket_repo.get_by_id_and_user.return_value = None  # wrong owner
-
         service = TicketService(ticket_repo=ticket_repo)
         result = await service.get_ticket_for_owner(
             ticket_id=uuid.uuid4(),
             user_id=uuid.uuid4(),
         )
-
         assert result is None
 
     @pytest.mark.asyncio
@@ -119,13 +115,11 @@ class TestTicketService:
         ticket_repo = AsyncMock()
         t = _mock_ticket()
         ticket_repo.get_by_id_and_user.return_value = t
-
         service = TicketService(ticket_repo=ticket_repo)
         result = await service.get_ticket_for_owner(
             ticket_id=t.id,
             user_id=t.user_id,
         )
-
         assert result == t
 
     @pytest.mark.asyncio
@@ -133,14 +127,12 @@ class TestTicketService:
         ticket_repo = AsyncMock()
         tickets = [_mock_ticket() for _ in range(5)]
         ticket_repo.list_by_user.return_value = (tickets, 5)
-
         service = TicketService(ticket_repo=ticket_repo)
         results, total = await service.get_user_tickets(
             user_id=uuid.uuid4(),
             limit=10,
             offset=0,
         )
-
         assert total == 5
         assert len(results) == 5
 
@@ -162,7 +154,6 @@ class TestAdminService:
     async def test_change_role_cannot_promote_to_superadmin(self):
         service = self._make_service()
         actor = _mock_user(role=Role.SUPERADMIN)
-
         with pytest.raises(AdminError) as exc:
             await service.change_user_role(
                 actor=actor,
@@ -178,10 +169,8 @@ class TestAdminService:
         user_repo = AsyncMock()
         target = _mock_user(role=Role.SUPERADMIN)
         user_repo.get_by_id.return_value = target
-
         service = self._make_service(user_repo=user_repo)
         actor = _mock_user(role=Role.SUPERADMIN)
-
         with pytest.raises(AdminError) as exc:
             await service.change_user_role(
                 actor=actor,
@@ -202,9 +191,7 @@ class TestAdminService:
         target.role = Role.ADMIN.value
         target.role_enum = Role.ADMIN
         user_repo.get_by_id.return_value = target
-
         service = self._make_service(user_repo=user_repo)
-
         with pytest.raises(AdminError) as exc:
             await service.change_user_role(
                 actor=actor,
@@ -219,14 +206,11 @@ class TestAdminService:
     async def test_change_role_writes_audit_log(self):
         user_repo = AsyncMock()
         audit_repo = AsyncMock()
-
         actor = _mock_user(role=Role.SUPERADMIN)
         target = _mock_user(role=Role.USER)
         user_repo.get_by_id.return_value = target
-
         updated = _mock_user(role=Role.ADMIN, user_id=target.id)
         user_repo.update_role.return_value = updated
-
         service = self._make_service(user_repo=user_repo, audit_repo=audit_repo)
         await service.change_user_role(
             actor=actor,
@@ -235,7 +219,6 @@ class TestAdminService:
             ip_address="10.0.0.1",
             user_agent="admin-panel",
         )
-
         audit_repo.create.assert_awaited_once()
         audit_kwargs = audit_repo.create.call_args.kwargs
         assert audit_kwargs["action"] == AuditAction.USER_ROLE_CHANGE
@@ -247,7 +230,6 @@ class TestAdminService:
     async def test_delete_user_cannot_delete_self(self):
         service = self._make_service()
         actor = _mock_user(role=Role.SUPERADMIN)
-
         with pytest.raises(AdminError) as exc:
             await service.delete_user(
                 actor=actor,
@@ -262,10 +244,8 @@ class TestAdminService:
         user_repo = AsyncMock()
         target = _mock_user(role=Role.SUPERADMIN)
         user_repo.get_by_id.return_value = target
-
         service = self._make_service(user_repo=user_repo)
         actor = _mock_user(role=Role.SUPERADMIN)
-
         with pytest.raises(AdminError) as exc:
             await service.delete_user(
                 actor=actor,
@@ -279,10 +259,8 @@ class TestAdminService:
     async def test_delete_user_not_found_raises(self):
         user_repo = AsyncMock()
         user_repo.get_by_id.return_value = None
-
         service = self._make_service(user_repo=user_repo)
         actor = _mock_user(role=Role.SUPERADMIN)
-
         with pytest.raises(AdminError) as exc:
             await service.delete_user(
                 actor=actor,
@@ -298,7 +276,6 @@ class TestAdminService:
         user_repo = AsyncMock()
         token_repo = AsyncMock()
         audit_repo = AsyncMock()
-
         actor = _mock_user(role=Role.ADMIN)
         target = _mock_user(role=Role.USER)
         user_repo.get_by_id.return_value = target

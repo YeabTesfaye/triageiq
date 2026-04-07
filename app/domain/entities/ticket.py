@@ -9,7 +9,6 @@ from typing import Any
 from app.domain.enums import TicketCategory, TicketPriority, TicketStatus
 from app.infrastructure.database import GUID, Base, _json_type
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 

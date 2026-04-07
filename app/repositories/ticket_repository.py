@@ -1,7 +1,6 @@
 """
 Ticket repository — all database operations for the Ticket entity.
 """
-
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
@@ -9,7 +8,8 @@ from typing import Any
 
 from app.domain.entities.ticket import Ticket
 from app.domain.enums import TicketCategory, TicketPriority, TicketStatus
-from sqlalchemy import and_, func, select, update
+from sqlalchemy import ColumnElement, and_, func, select, true, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -58,7 +58,7 @@ class TicketRepository:
         limit: int = 20,
         offset: int = 0,
     ) -> tuple[Sequence[Ticket], int]:
-        conditions = [Ticket.user_id == user_id]
+        conditions: list[ColumnElement[bool]] = [Ticket.user_id == user_id]
         return await self._paginated_query(conditions, limit=limit, offset=offset)
 
     async def list_all(
@@ -75,7 +75,7 @@ class TicketRepository:
         limit: int = 20,
         offset: int = 0,
     ) -> tuple[Sequence[Ticket], int]:
-        conditions = []
+        conditions: list[ColumnElement[bool]] = []
         if category:
             conditions.append(Ticket.category == category.value)
         if priority:
@@ -88,7 +88,6 @@ class TicketRepository:
             conditions.append(Ticket.created_at >= created_after)
         if created_before:
             conditions.append(Ticket.created_at <= created_before)
-
         return await self._paginated_query(
             conditions,
             limit=limit,
@@ -99,15 +98,14 @@ class TicketRepository:
 
     async def _paginated_query(
         self,
-        conditions: list,
+        conditions: list[ColumnElement[bool]],
         *,
         limit: int,
         offset: int,
         sort_by: str = "created_at",
         sort_dir: str = "desc",
     ) -> tuple[Sequence[Ticket], int]:
-        where_clause = and_(*conditions) if conditions else True  # type: ignore
-
+        where_clause = and_(*conditions) if conditions else true()
         count_stmt = select(func.count()).select_from(Ticket).where(where_clause)
         total = (await self._session.execute(count_stmt)).scalar_one()
 
@@ -120,7 +118,6 @@ class TicketRepository:
         }
         sort_col = sortable_columns.get(sort_by, Ticket.created_at)
         order = sort_col.desc() if sort_dir == "desc" else sort_col.asc()
-
         stmt = select(Ticket).where(where_clause).order_by(order).limit(limit).offset(offset)
         rows = (await self._session.execute(stmt)).scalars().all()
         return rows, total
@@ -141,6 +138,7 @@ class TicketRepository:
 
         stmt = sa_delete(Ticket).where(Ticket.id == ticket_id)
         result = await self._session.execute(stmt)
+        assert isinstance(result, CursorResult)
         return result.rowcount > 0
 
     async def get_stats_for_user(self, user_id: uuid.UUID) -> dict[str, Any]:
@@ -169,10 +167,18 @@ class TicketRepository:
         by_priority_stmt = select(Ticket.priority, func.count(Ticket.id)).group_by(Ticket.priority)
         by_status_stmt = select(Ticket.status, func.count(Ticket.id)).group_by(Ticket.status)
 
-        by_cat: dict[str,int] = dict((await self._session.execute(by_category_stmt)).all())
-        by_pri: dict[str,int] = dict((await self._session.execute(by_priority_stmt)).all())
-        by_sta: dict[str,int] = dict((await self._session.execute(by_status_stmt)).all())
-
+        by_cat: dict[str, int] = {
+            str(r[0]): int(r[1])
+            for r in (await self._session.execute(by_category_stmt)).all()
+        }
+        by_pri: dict[str, int] = {
+            str(r[0]): int(r[1])
+            for r in (await self._session.execute(by_priority_stmt)).all()
+        }
+        by_sta: dict[str, int] = {
+            str(r[0]): int(r[1])
+            for r in (await self._session.execute(by_status_stmt)).all()
+        }
         return {
             "total": total,
             "by_category": by_cat,

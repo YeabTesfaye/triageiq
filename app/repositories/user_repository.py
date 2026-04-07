@@ -11,6 +11,7 @@ from app.domain.entities.user import User
 from app.domain.enums import Role, UserStatus
 from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import ColumnElement, true
 
 
 class UserRepository:
@@ -69,7 +70,7 @@ class UserRepository:
         offset: int = 0,
     ) -> tuple[Sequence[User], int]:
         """Returns (users, total_count) for pagination."""
-        conditions = []
+        conditions : list[ColumnElement[bool]] = []
         if not include_deleted:
             conditions.append(User.deleted_at.is_(None))
         if role:
@@ -81,7 +82,7 @@ class UserRepository:
         if created_before:
             conditions.append(User.created_at <= created_before)
 
-        where_clause = and_(*conditions) if conditions else True  # type: ignore
+        where_clause = and_(*conditions) if conditions else true()  # type: ignore
 
         count_stmt = select(func.count()).select_from(User).where(where_clause)
         count_result = await self._session.execute(count_stmt)

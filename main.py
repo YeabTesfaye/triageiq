@@ -1,6 +1,5 @@
 """
 TriageIQ — FastAPI application entry point.
-
 Responsibilities:
 - Lifespan management (DB pool, Redis connection)
 - Global middleware (request_id, structured logging, security headers)
@@ -10,6 +9,7 @@ Responsibilities:
 - Router registration under /api/v1
 - Health and readiness endpoints
 """
+import inspect
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -30,7 +30,6 @@ from app.infrastructure.redis_client import close_redis, get_redis
 from app.presentation.routers import admin, analytics, auth, ticket
 
 # ── Structured Logging Setup ───────────────────────────────────────────────────
-
 structlog.configure(
     processors=[
         structlog.contextvars.merge_contextvars,
@@ -45,19 +44,16 @@ structlog.configure(
     logger_factory=structlog.PrintLoggerFactory(),
     cache_logger_on_first_use=True,
 )
-
 log = structlog.get_logger(__name__)
 
 # ── Rate Limiter ───────────────────────────────────────────────────────────────
-
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["100/minute"],
 )
 
+
 # ── Lifespan ───────────────────────────────────────────────────────────────────
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
@@ -67,11 +63,12 @@ async def lifespan(app: FastAPI):
         version=settings.APP_VERSION,
         env=settings.ENV,
     )
-
     # Warm up Redis connection
     try:
         redis = await get_redis()
-        await redis.ping()
+        ping_result = redis.ping()
+        if inspect.isawaitable(ping_result):
+            await ping_result
         log.info("redis_connected")
     except Exception as e:
         log.error("redis_connection_failed", error=str(e))
@@ -85,7 +82,6 @@ async def lifespan(app: FastAPI):
 
 
 # ── App Factory ────────────────────────────────────────────────────────────────
-
 def create_app() -> FastAPI:
     settings = get_settings()
 
@@ -143,7 +139,11 @@ def create_app() -> FastAPI:
 
     # ── Rate Limiting ──────────────────────────────────────────────────────────
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+    async def _rate_limit_handler(request: Request, exc: Exception) -> Response:
+        return _rate_limit_exceeded_handler(request, exc)  # type: ignore[arg-type]
+
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
     app.add_middleware(SlowAPIMiddleware)
 
     # ── Request ID + Structured Logging Middleware ─────────────────────────────
@@ -162,10 +162,8 @@ def create_app() -> FastAPI:
         )
 
         response = await call_next(request)
-
         duration_ms = (time.perf_counter() - start_time) * 1000
         response.headers["X-Request-ID"] = request_id
-
         log.info(
             "request_complete",
             status_code=response.status_code,
@@ -212,19 +210,20 @@ def create_app() -> FastAPI:
     async def readiness():
         """Check DB and Redis connectivity."""
         checks = {}
-
         try:
             from app.infrastructure.database import get_engine
+
             async with get_engine().connect() as conn:
                 await conn.execute(__import__("sqlalchemy").text("SELECT 1"))
             checks["database"] = "ok"
         except Exception as e:
             log.error("readiness_db_failed", error=str(e))
             checks["database"] = "error"
-
         try:
             redis = await get_redis()
-            await redis.ping()
+            ping_result = redis.ping()
+            if inspect.isawaitable(ping_result):
+                await ping_result
             checks["redis"] = "ok"
         except Exception as e:
             log.error("readiness_redis_failed", error=str(e))

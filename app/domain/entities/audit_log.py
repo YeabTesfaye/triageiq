@@ -10,7 +10,7 @@ from typing import Any
 from app.infrastructure.database import GUID, Base, _json_type
 from sqlalchemy import DateTime, ForeignKey, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import  UUID
+
 
 
 class RefreshToken(Base):
@@ -42,7 +42,13 @@ class RefreshToken(Base):
 
     @property
     def is_valid(self) -> bool:
-        return self.revoked_at is None and datetime.now(UTC) < self.expires_at
+        now = datetime.now(UTC)
+        expires = self.expires_at
+        # SQLite returns naive dattimes; treat them as UTC
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=UTC)
+        return self.revoked_at is None and expires > now
+        
 
 
 class AuditLog(Base):
