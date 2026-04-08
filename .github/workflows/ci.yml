@@ -95,6 +95,8 @@ jobs:
             --cov-report=term-missing \
             --cov-fail-under=70 \
             -v
+      - name: Check for migrations 
+        run : uv run alembic check 
 
   docker:
     name: Docker Build

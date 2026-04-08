@@ -43,7 +43,7 @@ Repositories (all DB access)
 
 ```bash
 # Clone and enter
-git clone <repo>
+https://github.com/YeabTesfaye/triageiq 
 cd triageiq
 
 # Install dependencies
