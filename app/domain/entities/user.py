@@ -7,9 +7,11 @@ import uuid
 from datetime import UTC, datetime
 
 from app.domain.enums import Role, UserStatus
-from app.infrastructure.database import GUID, Base
+from app.infrastructure.database import  Base
 from sqlalchemy import Boolean, DateTime, Index, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import UUID
+
 
 
 class User(Base):
@@ -22,11 +24,12 @@ class User(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
-        GUID,
+        UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
         index=True,
     )
+    
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)

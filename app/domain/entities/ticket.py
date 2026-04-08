@@ -7,9 +7,10 @@ from datetime import datetime
 from typing import Any
 
 from app.domain.enums import TicketCategory, TicketPriority, TicketStatus
-from app.infrastructure.database import GUID, Base, _json_type
+from app.infrastructure.database import  Base, _json_type
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import UUID
 
 
 class Ticket(Base):
@@ -22,9 +23,9 @@ class Ticket(Base):
         Index("ix_tickets_priority", "priority"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(GUID, primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
-        GUID,
+        UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
     )
