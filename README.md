@@ -1,5 +1,9 @@
 # TriageIQ — AI Support Ticket Triage System
 
+[![CI](https://github.com/YeabTesfaye/triageiq/actions/workflows/ci.yml/badge.svg)](https://github.com/YeabTesfaye/triageiq/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.12-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 Production-grade FastAPI backend with AI-powered ticket classification, full RBAC, JWT authentication with token rotation, Redis-backed blacklisting, and comprehensive audit logging.
 
 ---
