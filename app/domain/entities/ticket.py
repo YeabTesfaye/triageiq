@@ -7,10 +7,10 @@ from datetime import datetime
 from typing import Any
 
 from app.domain.enums import TicketCategory, TicketPriority, TicketStatus
-from app.infrastructure.database import  Base, _json_type
+from app.infrastructure.database import Base, _json_type
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class Ticket(Base):
@@ -29,22 +29,18 @@ class Ticket(Base):
         ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
     )
-
     message: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str | None] = mapped_column(String(50), nullable=True)
     priority: Mapped[str | None] = mapped_column(String(20), nullable=True)
     ai_response: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Full raw AI JSON payload for debugging / re-processing
     ai_raw: Mapped[dict[str, Any] | None] = mapped_column(_json_type(), nullable=True)
-
-
     status: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
         default=TicketStatus.OPEN.value,
         server_default=TicketStatus.OPEN.value,
     )
-
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

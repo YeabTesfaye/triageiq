@@ -7,11 +7,10 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from app.infrastructure.database import  Base, _json_type
+from app.infrastructure.database import Base, _json_type
 from sqlalchemy import DateTime, ForeignKey, Index, String, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
-
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class RefreshToken(Base):
@@ -36,7 +35,6 @@ class RefreshToken(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-
     user: Mapped["User"] = relationship(  # type: ignore[name-defined]
         "User", back_populates="refresh_tokens", lazy="noload"
     )
@@ -45,11 +43,10 @@ class RefreshToken(Base):
     def is_valid(self) -> bool:
         now = datetime.now(UTC)
         expires = self.expires_at
-        # SQLite returns naive dattimes; treat them as UTC
+        # SQLite returns naive datetimes; treat them as UTC
         if expires.tzinfo is None:
             expires = expires.replace(tzinfo=UTC)
         return self.revoked_at is None and expires > now
-        
 
 
 class AuditLog(Base):
