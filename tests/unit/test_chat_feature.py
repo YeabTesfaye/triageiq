@@ -18,8 +18,7 @@ Covers every item on the spec checklist:
 from __future__ import annotations
 
 import uuid
-from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -36,7 +35,7 @@ class _FakeMessage:
         self.sender_id = kwargs.get("sender_id")
         self.sender_role = kwargs.get("sender_role", "USER")
         self.content = kwargs.get("content", "hello")
-        self.created_at = kwargs.get("created_at", datetime.now(timezone.utc))
+        self.created_at = kwargs.get("created_at", datetime.now(UTC))
 
 
 class _FakeTicket:
@@ -84,9 +83,7 @@ class TestPushMessageToFirebase:
         ):
             await push_message_to_firebase("abc-123", {"content": "hello"})
 
-        mock_db.reference.assert_called_once_with(
-            "chats/abc-123/messages", app=mock_app
-        )
+        mock_db.reference.assert_called_once_with("chats/abc-123/messages", app=mock_app)
         mock_ref.push.assert_called_once_with({"content": "hello"})
 
 
@@ -116,7 +113,7 @@ class TestChatRepository:
         # Make refresh populate the object (side-effect simulation)
         async def _refresh(obj):
             obj.id = uuid.uuid4()
-            obj.created_at = datetime.now(timezone.utc)
+            obj.created_at = datetime.now(UTC)
 
         session.refresh.side_effect = _refresh
 

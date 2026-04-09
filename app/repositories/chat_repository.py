@@ -14,10 +14,9 @@ from __future__ import annotations
 import uuid
 from collections.abc import Sequence
 
+from app.domain.entities.message import Message
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.domain.entities.message import Message
 
 
 class ChatRepository:
@@ -44,7 +43,7 @@ class ChatRepository:
             content=content,
         )
         self._session.add(message)
-        await self._session.flush()   # populate server-defaults (id, created_at)
+        await self._session.flush()  # populate server-defaults (id, created_at)
         await self._session.refresh(message)
         return message
 

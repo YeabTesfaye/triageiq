@@ -6,10 +6,9 @@ No hardcoded secrets anywhere in the codebase.
 
 from functools import lru_cache
 
+from dotenv import load_dotenv
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-from dotenv import load_dotenv
 
 load_dotenv()  # Load .env file at startup, if it exists
 
@@ -83,7 +82,7 @@ class Settings(BaseSettings):
 
     # ── Firebase ───────────────────────────────────────────────────────────────
     FIREBASE_CREDENTIALS_PATH: str = "firebase_service_account.json"
-    FIREBASE_DATABASE_URL: str
+    FIREBASE_DATABASE_URL: str = ""
 
     @field_validator("JWT_SECRET_KEY")
     @classmethod

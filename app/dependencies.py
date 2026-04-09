@@ -137,7 +137,7 @@ def require_roles(*roles: Role):
         if Role(current_user.role) not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=(f"Insufficient permissions. " f"Required: {[r.value for r in roles]}"),
+                detail=(f"Insufficient permissions. Required: {[r.value for r in roles]}"),
             )
         return current_user
 

@@ -3,9 +3,6 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.application.services.chat_service import ChatError, ChatService
 from app.dependencies import get_current_user
 from app.domain.entities.user import Role, User
@@ -18,6 +15,8 @@ from app.presentation.schemas.chat_schemas import (
 )
 from app.repositories.chat_repository import ChatRepository
 from app.repositories.ticket_repository import TicketRepository
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 

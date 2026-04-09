@@ -9,12 +9,12 @@ for message content.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
+from app.infrastructure.database import Base
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from app.infrastructure.database import Base  
 
 
 class Message(Base):
@@ -53,12 +53,11 @@ class Message(Base):
     # ------------------------------------------------------------------
     # Audit columns
     # ------------------------------------------------------------------
-    created_at: Mapped[DateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
     )
-
     # ------------------------------------------------------------------
     # Relationships  (lazy="noload" — loaded explicitly when needed)
     # ------------------------------------------------------------------

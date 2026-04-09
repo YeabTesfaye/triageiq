@@ -1913,6 +1913,7 @@ dev = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "ruff" },
     { name = "types-bleach" },
 ]
 
@@ -1949,7 +1950,10 @@ requires-dist = [
 provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "types-bleach", specifier = ">=6.3.0.20260402" }]
+dev = [
+    { name = "ruff", specifier = ">=0.15.9" },
+    { name = "types-bleach", specifier = ">=6.3.0.20260402" },
+]
 
 [[package]]
 name = "types-bleach"

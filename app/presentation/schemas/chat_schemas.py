@@ -35,6 +35,7 @@ class MessageResponse(BaseModel):
 
 class SendMessageResponse(BaseModel):
     """Response for POST — includes user message and optional AI reply."""
+
     user_message: MessageResponse
     ai_reply: MessageResponse | None = None
 

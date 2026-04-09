@@ -8,16 +8,16 @@ Flow:
   4. Persist the AI reply          (PostgreSQL — must succeed)
   5. Broadcast both to Firebase    (non-fatal)
 """
+
 from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
 
 import structlog
-
 from app.domain.entities.message import Message
-from app.infrastructure.firebase_client import push_message_to_firebase
 from app.infrastructure.ai.openai_client import AIServiceError, get_openai_client
+from app.infrastructure.firebase_client import push_message_to_firebase
 from app.repositories.chat_repository import ChatRepository
 
 log = structlog.get_logger(__name__)
@@ -81,15 +81,18 @@ class ChatService:
             sender_role=role_str,
             content=content,
         )
-        log.info("chat_service.user_message_saved",
-                 ticket_id=str(ticket_id), message_id=str(user_msg.id))
+        log.info(
+            "chat_service.user_message_saved", ticket_id=str(ticket_id), message_id=str(user_msg.id)
+        )
         await self._broadcast(ticket_id, user_msg)
 
         # 2. Build conversation history for the AI (last 10 messages)
         recent, _ = await self._chat_repo.list_by_ticket(ticket_id, limit=10, offset=0)
         history = [
-            {"role": "assistant" if m.sender_role == AI_SENDER_ROLE else "user",
-             "content": m.content}
+            {
+                "role": "assistant" if m.sender_role == AI_SENDER_ROLE else "user",
+                "content": m.content,
+            }
             for m in recent
         ]
 
@@ -108,8 +111,9 @@ class ChatService:
                 sender_role=AI_SENDER_ROLE,
                 content=ai_text,
             )
-            log.info("chat_service.ai_reply_saved",
-                     ticket_id=str(ticket_id), message_id=str(ai_msg.id))
+            log.info(
+                "chat_service.ai_reply_saved", ticket_id=str(ticket_id), message_id=str(ai_msg.id)
+            )
             await self._broadcast(ticket_id, ai_msg)
 
         except AIServiceError:

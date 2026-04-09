@@ -97,6 +97,11 @@ jobs:
             -v
       - name: Check for migrations 
         run : uv run alembic check 
+      - name: Run migrations
+        env:
+          DATABASE_URL: "postgresql+asyncpg://triageiq:triageiq@localhost:5432/triageiq"
+          FIREBASE_DATABASE_URL: "https://placeholder.firebaseio.com"   # ← add
+        run: uv run alembic upgrade head
 
   docker:
     name: Docker Build

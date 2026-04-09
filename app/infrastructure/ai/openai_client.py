@@ -146,7 +146,7 @@ class OpenAIClient:
             f"AI service unavailable after {self._max_retries + 1} attempts: {last_error}",
             retry_after=30,
         )
-    
+
     _CHAT_SYSTEM_PROMPT = """You are a friendly, knowledgeable support assistant.
     You are helping a user who has opened a support ticket.
     Use the ticket description as context.
@@ -176,7 +176,7 @@ class OpenAIClient:
         last_error: Exception | None = None
         for attempt in range(self._max_retries + 1):
             if attempt > 0:
-                await asyncio.sleep(2 ** attempt)
+                await asyncio.sleep(2**attempt)
             try:
                 response = await self._client.chat.completions.create(
                     model=self._model,
