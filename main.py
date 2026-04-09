@@ -17,6 +17,7 @@ from app.config import get_settings
 from app.infrastructure.database import dispose_engine
 from app.infrastructure.redis_client import close_redis, get_redis
 from app.presentation.routers import admin, analytics, auth, ticket
+from app.presentation.routers.chat_router import router as chat_router
 
 # ── Structured Logging Setup ───────────────────────────────────────────────────
 structlog.configure(
@@ -185,6 +186,7 @@ def create_app() -> FastAPI:
     app.include_router(ticket.router, prefix=api_prefix)
     app.include_router(admin.router, prefix=api_prefix)
     app.include_router(analytics.router, prefix=api_prefix)
+    app.include_router(chat_router, prefix=api_prefix)
 
     # ── Health ─────────────────────────────────────────────────────────────────
     @app.get("/health", include_in_schema=False)

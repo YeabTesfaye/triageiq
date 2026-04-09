@@ -146,6 +146,53 @@ class OpenAIClient:
             f"AI service unavailable after {self._max_retries + 1} attempts: {last_error}",
             retry_after=30,
         )
+    
+    _CHAT_SYSTEM_PROMPT = """You are a friendly, knowledgeable support assistant.
+    You are helping a user who has opened a support ticket.
+    Use the ticket description as context.
+    Keep replies concise (2-4 sentences), professional, and helpful.
+    Never mention that you are an AI unless directly asked.
+    Do not output JSON — respond in plain conversational text."""
+
+    async def chat_reply(
+        self,
+        ticket_description: str,
+        history: list[dict],
+    ) -> str:
+        """
+        Generate a conversational support reply given:
+        - ticket_description : the original ticket text (context)
+        - history            : list of {"role": "user"|"assistant", "content": str}
+
+        Returns the assistant's plain-text reply string.
+        Raises AIServiceError after all retries fail.
+        """
+        system = self._CHAT_SYSTEM_PROMPT
+        if ticket_description:
+            system += f"\n\nTicket context: {ticket_description[:500]}"
+
+        messages = [{"role": "system", "content": system}] + history
+
+        last_error: Exception | None = None
+        for attempt in range(self._max_retries + 1):
+            if attempt > 0:
+                await asyncio.sleep(2 ** attempt)
+            try:
+                response = await self._client.chat.completions.create(
+                    model=self._model,
+                    messages=messages,
+                    temperature=0.5,
+                    max_tokens=300,
+                )
+                return (response.choices[0].message.content or "").strip()
+            except (APITimeoutError, APIConnectionError, RateLimitError) as e:
+                last_error = e
+            except Exception as e:
+                last_error = e
+
+        raise AIServiceError(
+            f"Chat AI unavailable after {self._max_retries + 1} attempts: {last_error}"
+        )
 
 
 # ── Singleton ──────────────────────────────────────────────────────────────────

@@ -18,6 +18,7 @@ from app.infrastructure.database import Base
 import app.domain.entities.user  # noqa: F401
 import app.domain.entities.ticket  # noqa: F401
 import app.domain.entities.audit_log  # noqa: F401
+import app.domain.entities.message  # noqa: F401
 
 settings = get_settings()
 
