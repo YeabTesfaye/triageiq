@@ -35,12 +35,14 @@ class _FakeMessage:
         self.content = kwargs.get("content", "hello")
         self.created_at = kwargs.get("created_at", datetime.now(UTC))
 
+
 class _FakeTicket:
     def __init__(self, user_id: uuid.UUID, status: str = "open"):
         self.id = uuid.uuid4()
         self.user_id = user_id
         self.description = "Test ticket"
         self.status = status
+
 
 # ---------------------------------------------------------------------------
 # firebase_client — push_message_to_firebase
