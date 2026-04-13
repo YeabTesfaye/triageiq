@@ -38,6 +38,7 @@ def _is_admin(user: User) -> bool:
     role = getattr(user.role, "value", user.role)
     return role in {"admin", "superadmin", "moderator"}
 
+
 # ------------------------------------------------------------------
 # Dependency
 # ------------------------------------------------------------------
@@ -102,7 +103,7 @@ def _build_list_response(
 async def send_message(
     ticket_id: uuid.UUID,
     body: SendMessageRequest,
-    background_tasks: BackgroundTasks | None = None,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     service: ChatService = Depends(_get_chat_service),
 ) -> MessageResponse:

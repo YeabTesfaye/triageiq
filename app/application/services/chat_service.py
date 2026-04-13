@@ -118,7 +118,7 @@ class ChatService:
         sender_role,
         content: str,
         is_admin: bool,
-        background_tasks : BackgroundTasks | None = None
+        background_tasks: BackgroundTasks,
     ) -> Message:  # ✅ FIX: return single message
         ticket = await self._resolve_ticket(ticket_id, sender_id, is_admin=is_admin)
 
@@ -137,10 +137,10 @@ class ChatService:
         await self._broadcast(ticket_id, user_msg)
 
         # fire-and-forget AI (only if available)
-        if self._session_factory:
+        if self._session_factory and background_tasks:
             background_tasks.add_task(
                 self._generate_and_broadcast_ai_reply,
-                ticket_id = ticket_id,
+                ticket_id=ticket_id,
                 ticket_description=getattr(ticket, "message", "") or "",
             )
 
@@ -154,7 +154,7 @@ class ChatService:
         is_admin: bool,
         limit: int = 50,
         before_id: uuid.UUID | None = None,
-        offset : int | None = None
+        offset: int | None = None,
     ) -> tuple[Sequence[Message], int]:
         await self._resolve_ticket(ticket_id, requester_id, is_admin=is_admin)
 

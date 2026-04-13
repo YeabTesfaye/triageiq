@@ -183,6 +183,7 @@ class TestChatService:
                 sender_role="USER",
                 content="Hi there",
                 is_admin=False,
+                background_tasks=None,
             )
 
         ticket_repo.get_by_id_and_user.assert_awaited_once_with(tid, uid)
@@ -212,6 +213,7 @@ class TestChatService:
                 sender_role="USER",
                 content="Hi",
                 is_admin=False,
+                background_tasks=None,
             )
 
         assert exc_info.value.code == "TICKET_NOT_FOUND"
@@ -244,6 +246,7 @@ class TestChatService:
                 sender_role="ADMIN",
                 content="Admin reply",
                 is_admin=True,
+                background_tasks=None,
             )
 
         ticket_repo.get_by_id.assert_awaited_once_with(tid)
@@ -283,6 +286,7 @@ class TestChatService:
                 sender_role="USER",
                 content="Hello",
                 is_admin=False,
+                background_tasks=None,
             )
 
         # FIX 2: unpack tuple; user message still returned despite Firebase failure
