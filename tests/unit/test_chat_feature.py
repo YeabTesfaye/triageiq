@@ -35,13 +35,12 @@ class _FakeMessage:
         self.content = kwargs.get("content", "hello")
         self.created_at = kwargs.get("created_at", datetime.now(UTC))
 
-
 class _FakeTicket:
-    def __init__(self, user_id: uuid.UUID):
+    def __init__(self, user_id: uuid.UUID, status: str = "open"):
         self.id = uuid.uuid4()
         self.user_id = user_id
         self.description = "Test ticket"
-
+        self.status = status
 
 # ---------------------------------------------------------------------------
 # firebase_client — push_message_to_firebase
@@ -124,6 +123,8 @@ class TestChatRepository:
     @pytest.mark.asyncio
     async def test_list_by_ticket_returns_rows_and_total(self):
         session = AsyncMock()
+        session.flush = AsyncMock()
+        session.refresh = AsyncMock()
         tid = uuid.uuid4()
         fake_msgs = [_FakeMessage(ticket_id=tid), _FakeMessage(ticket_id=tid)]
 
@@ -190,7 +191,7 @@ class TestChatService:
         chat_repo.create.assert_awaited()
         mock_push.assert_awaited()
         # FIX 2: send_message now returns (user_msg, ai_msg) — unpack it
-        user_msg, _ai_msg = result
+        user_msg = result
         assert user_msg is fake_msg
 
     @pytest.mark.asyncio
@@ -251,7 +252,7 @@ class TestChatService:
 
         ticket_repo.get_by_id.assert_awaited_once_with(tid)
         # FIX 2: unpack tuple
-        user_msg, _ai_msg = result
+        user_msg = result
         assert user_msg is fake_msg
 
     @pytest.mark.asyncio
@@ -290,7 +291,7 @@ class TestChatService:
             )
 
         # FIX 2: unpack tuple; user message still returned despite Firebase failure
-        user_msg, _ai_msg = result
+        user_msg = result
         assert user_msg is fake_msg
 
     # -- get_messages --------------------------------------------------------
