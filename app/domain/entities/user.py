@@ -2,7 +2,6 @@
 User entity — SQLAlchemy ORM model with domain invariants.
 The model owns its own field-level constraints.
 """
-
 import uuid
 from datetime import UTC, datetime
 
@@ -28,7 +27,6 @@ class User(Base):
         default=uuid.uuid4,
         index=True,
     )
-
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -47,14 +45,17 @@ class User(Base):
     is_verified: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )
+
     # Login tracking
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     failed_login_attempts: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default="0"
     )
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # Soft delete
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -76,6 +77,7 @@ class User(Base):
     )
 
     # ── Domain helpers ─────────────────────────────────────────────────────────
+
     @property
     def role_enum(self) -> Role:
         return Role(self.role)
@@ -93,6 +95,21 @@ class User(Base):
         if self.locked_until is None:
             return False
         return datetime.now(UTC) < self.locked_until
+
+    @property
+    def is_staff(self) -> bool:
+        """
+        True for roles with elevated access (can see all tickets).
+
+        Design: role logic lives on the entity, not scattered across routers.
+        self.role is a plain string (e.g. "admin"); we compare against .value
+        to avoid the silent False you'd get comparing a string to an enum object.
+        """
+        return self.role in (
+            Role.ADMIN.value,
+            Role.SUPERADMIN.value,
+            Role.MODERATOR.value,
+        )
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<User id={self.id} email=***{self.email[-6:]} role={self.role}>"

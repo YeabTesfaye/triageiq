@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     # ── JWT ────────────────────────────────────────────────────────────────────
     JWT_SECRET_KEY: str = "CHANGE_ME_IN_PRODUCTION_MINIMUM_32_CHARS"
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # ── Security ───────────────────────────────────────────────────────────────
@@ -104,3 +104,4 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Cached settings singleton — call this everywhere."""
     return Settings()
+

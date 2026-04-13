@@ -1,14 +1,16 @@
 """
 Chat repository.
-
 Handles all database I/O for the ``messages`` table.
-Follows the repository pattern used throughout this codebase:
-  - Accepts an ``AsyncSession`` in ``__init__``.
-  - Uses ``select()`` queries exclusively.
-  - Returns typed domain objects.
-  - Never raises HTTP exceptions.
-"""
 
+Design principles followed:
+  - Repository pattern: all DB I/O is here; service layer stays pure.
+  - Cursor pagination (before_id) instead of offset: offset breaks under
+    real-time inserts (rows shift), cursor is stable regardless of new messages.
+  - Two queries (count + page): gives the client a total for UI "X unread"
+    indicators without a second HTTP call.
+  - Results are reversed after the DESC fetch so callers always receive
+    messages in ascending (chronological) order.
+"""
 from __future__ import annotations
 
 import uuid
@@ -43,7 +45,9 @@ class ChatRepository:
             content=content,
         )
         self._session.add(message)
-        await self._session.flush()  # populate server-defaults (id, created_at)
+        # flush populates server-defaults (id, created_at) without committing —
+        # the calling service controls the transaction boundary.
+        await self._session.flush()
         await self._session.refresh(message)
         return message
 
@@ -56,26 +60,43 @@ class ChatRepository:
         ticket_id: uuid.UUID,
         *,
         limit: int = 50,
-        offset: int = 0,
+        before_id: uuid.UUID | None = None,
     ) -> tuple[Sequence[Message], int]:
         """
         Return a page of messages for *ticket_id*, ordered oldest-first,
         along with the total un-paginated count.
+
+        Cursor pagination via before_id:
+          - No before_id  → return the latest `limit` messages (initial load).
+          - With before_id → return `limit` messages older than that message
+                            (scroll-up / "load more" pattern).
+
+        The count always reflects the full thread so the client can show
+        "showing 50 of 120 messages" without a second request.
         """
         base_filter = Message.ticket_id == ticket_id
 
-        # Total count
-        count_stmt = select(func.count()).select_from(Message).where(base_filter)
+        if before_id is not None:
+            # Resolve the cursor row's timestamp — using created_at keeps the
+            # filter index-friendly (ix_messages_created_at).
+            cursor_stmt = select(Message.created_at).where(Message.id == before_id)
+            cursor_ts = (await self._session.execute(cursor_stmt)).scalar_one_or_none()
+            if cursor_ts is not None:
+                base_filter = base_filter & (Message.created_at < cursor_ts)
+
+        # Total count for the whole thread (ignoring cursor) so pagination UI
+        # always shows the correct total even when loading older pages.
+        total_filter = Message.ticket_id == ticket_id
+        count_stmt = select(func.count()).select_from(Message).where(total_filter)
         total: int = (await self._session.execute(count_stmt)).scalar_one()
 
-        # Page of rows
+        # Fetch newest-first (DESC) so LIMIT efficiently trims at the "top",
+        # then reverse so callers always receive chronological (ASC) order.
         rows_stmt = (
             select(Message)
             .where(base_filter)
-            .order_by(Message.created_at.asc())
+            .order_by(Message.created_at.desc())
             .limit(limit)
-            .offset(offset)
         )
         rows: Sequence[Message] = (await self._session.scalars(rows_stmt)).all()
-
-        return rows, total
+        return list(reversed(rows)), total

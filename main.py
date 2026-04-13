@@ -17,7 +17,7 @@ from app.config import get_settings
 from app.infrastructure.database import dispose_engine
 from app.infrastructure.redis_client import close_redis, get_redis
 from app.presentation.routers import admin, analytics, auth, ticket
-from app.presentation.routers.chat_router import router as chat_router
+from app.presentation.routers.chat_router import router as chat_router 
 
 # ── Structured Logging Setup ───────────────────────────────────────────────────
 structlog.configure(
@@ -51,29 +51,6 @@ async def rate_limit_handler(
 
 
 # ── Lifespan ───────────────────────────────────────────────────────────────────
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    settings = get_settings()
-    log.info(
-        "startup",
-        app=settings.APP_NAME,
-        version=settings.APP_VERSION,
-        env=settings.ENV,
-    )
-    # Warm up Redis connection
-    try:
-        redis = await get_redis()
-        result = redis.ping()
-        if hasattr(result, "__await__"):
-            await result
-        log.info("redis_connected")
-    except Exception as e:
-        log.error("redis_connection_failed", error=str(e))
-    yield
-    log.info("shutdown_started")
-    await dispose_engine()
-    await close_redis()
-    log.info("shutdown_complete")
 
 
 # ── App Factory ────────────────────────────────────────────────────────────────
@@ -89,7 +66,6 @@ def create_app() -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
-        lifespan=lifespan,
         swagger_ui_parameters={"persistAuthorization": True},
     )
 
@@ -187,6 +163,8 @@ def create_app() -> FastAPI:
     app.include_router(admin.router, prefix=api_prefix)
     app.include_router(analytics.router, prefix=api_prefix)
     app.include_router(chat_router, prefix=api_prefix)
+
+    print(chat_router, "Chat router")
 
     # ── Health ─────────────────────────────────────────────────────────────────
     @app.get("/health", include_in_schema=False)
