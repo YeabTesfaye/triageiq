@@ -16,13 +16,12 @@ import uuid
 from collections.abc import Callable, Sequence
 
 import structlog
-from fastapi import BackgroundTasks
-
 from app.domain.entities.message import Message
 from app.domain.entities.ticket import Ticket
 from app.infrastructure.ai.openai_client import get_openai_client
 from app.infrastructure.firebase_client import push_message_to_firebase
 from app.repositories.chat_repository import ChatRepository
+from fastapi import BackgroundTasks
 
 log = structlog.get_logger(__name__)
 

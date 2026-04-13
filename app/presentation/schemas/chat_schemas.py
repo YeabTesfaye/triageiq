@@ -21,7 +21,6 @@ from datetime import datetime
 import bleach
 from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
-
 # ---------------------------------------------------------------------------
 # Request
 # ---------------------------------------------------------------------------

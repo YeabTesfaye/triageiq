@@ -10,9 +10,6 @@ from __future__ import annotations
 import uuid
 
 import structlog
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.application.services.chat_service import ChatError, ChatService
 from app.dependencies import get_current_user
 from app.domain.entities.user import User
@@ -26,6 +23,8 @@ from app.presentation.schemas.chat_schemas import (
 )
 from app.repositories.chat_repository import ChatRepository
 from app.repositories.ticket_repository import TicketRepository
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 log = structlog.get_logger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -70,14 +69,13 @@ def _build_list_response(
 ) -> dict:
     """Shared pagination logic for both list endpoints."""
     next_cursor = messages[0].id if messages and len(messages) == limit else None
-    return dict(
-        messages=[MessageResponse.model_validate(m) for m in messages],
-        total=total,
-        limit=limit,
-        has_more=next_cursor is not None,
-        next_cursor=next_cursor,
-    )
-
+    return {
+        "messages": [MessageResponse.model_validate(m) for m in messages],
+        "total": total,
+        "limit": limit,
+        "has_more": next_cursor is not None,
+        "next_cursor": next_cursor,
+}
 
 # ------------------------------------------------------------------
 # Routes

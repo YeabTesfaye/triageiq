@@ -16,7 +16,7 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 import sqlalchemy as sa
-from sqlalchemy import TypeDecorator, String
+from sqlalchemy import String, TypeDecorator
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import (
     AsyncAttrs,
