@@ -29,6 +29,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 log = structlog.get_logger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
 
+#------------------------
+# Helper function
+#---------------
+def _is_admin(user: User) -> bool:
+    return str(user.role) in {"admin", "superadmin", "moderator"}
 
 # ------------------------------------------------------------------
 # Dependency

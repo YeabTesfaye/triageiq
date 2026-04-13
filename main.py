@@ -1,9 +1,11 @@
 import time
 import uuid
-from collections.abc import Awaitable
-from contextlib import asynccontextmanager
 
 import structlog
+from app.config import get_settings
+from app.infrastructure.redis_client import get_redis
+from app.presentation.routers import admin, analytics, auth, ticket
+from app.presentation.routers.chat_router import router as chat_router
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
@@ -12,12 +14,6 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
-
-from app.config import get_settings
-from app.infrastructure.database import dispose_engine
-from app.infrastructure.redis_client import close_redis, get_redis
-from app.presentation.routers import admin, analytics, auth, ticket
-from app.presentation.routers.chat_router import router as chat_router 
 
 # ── Structured Logging Setup ───────────────────────────────────────────────────
 structlog.configure(

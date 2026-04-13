@@ -99,7 +99,7 @@ async def get_ticket(
     ticket_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     service: TicketService = Depends(_get_ticket_service),
-): 
+):
     ticket = await service.get_ticket_for_owner(ticket_id, current_user.id)
     if ticket is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Ticket not found")

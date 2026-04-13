@@ -61,6 +61,7 @@ class ChatRepository:
         *,
         limit: int = 50,
         before_id: uuid.UUID | None = None,
+        offset : int | None = None
     ) -> tuple[Sequence[Message], int]:
         """
         Return a page of messages for *ticket_id*, ordered oldest-first,

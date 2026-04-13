@@ -189,7 +189,7 @@ class TestChatService:
         chat_repo.create.assert_awaited()
         mock_push.assert_awaited()
         # FIX 2: send_message now returns (user_msg, ai_msg) — unpack it
-        user_msg, _ai_msg = result
+        user_msg = result
         assert user_msg is fake_msg
 
     @pytest.mark.asyncio
@@ -366,9 +366,6 @@ class TestSendMessageRequest:
         assert len(req.content) == 2000
 
 
-# ---------------------------------------------------------------------------
-# _is_admin helper
-# ---------------------------------------------------------------------------
 
 
 class TestIsAdmin:

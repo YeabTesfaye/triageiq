@@ -17,13 +17,10 @@ import getpass
 import json
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.config import get_settings
 from app.domain.entities.audit_log import AuditLog
@@ -33,12 +30,14 @@ from app.infrastructure.security.password_handler import (
     hash_password,
     validate_password_strength,
 )
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 
 def _log(level: str, event: str, **kwargs) -> None:
     """Minimal structured JSON logger — no dependency on app logging setup."""
     print(json.dumps({
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "level": level,
         "event": event,
         **kwargs,
