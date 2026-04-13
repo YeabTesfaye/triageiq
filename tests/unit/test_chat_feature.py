@@ -41,7 +41,6 @@ class _FakeTicket:
         self.id = uuid.uuid4()
         self.user_id = user_id
         self.description = "Test ticket"
-        self.status  = "open"
 
 
 # ---------------------------------------------------------------------------
@@ -190,7 +189,7 @@ class TestChatService:
         chat_repo.create.assert_awaited()
         mock_push.assert_awaited()
         # FIX 2: send_message now returns (user_msg, ai_msg) — unpack it
-        user_msg = result
+        user_msg, _ai_msg = result
         assert user_msg is fake_msg
 
     @pytest.mark.asyncio
@@ -365,6 +364,11 @@ class TestSendMessageRequest:
     def test_exactly_2000_chars_passes(self):
         req = self._make("a" * 2000)
         assert len(req.content) == 2000
+
+
+# ---------------------------------------------------------------------------
+# _is_admin helper
+# ---------------------------------------------------------------------------
 
 
 class TestIsAdmin:

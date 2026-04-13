@@ -3,13 +3,13 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable, Sequence
 
-from fastapi import BackgroundTasks
 import structlog
 from app.domain.entities.message import Message
 from app.domain.entities.ticket import Ticket
 from app.infrastructure.ai.openai_client import get_openai_client
 from app.infrastructure.firebase_client import push_message_to_firebase
 from app.repositories.chat_repository import ChatRepository
+from fastapi import BackgroundTasks
 
 log = structlog.get_logger(__name__)
 
@@ -118,7 +118,7 @@ class ChatService:
         sender_role,
         content: str,
         is_admin: bool,
-        background_tasks : BackgroundTasks
+        background_tasks : BackgroundTasks | None = None
     ) -> Message:  # ✅ FIX: return single message
         ticket = await self._resolve_ticket(ticket_id, sender_id, is_admin=is_admin)
 
