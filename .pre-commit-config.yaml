@@ -1,0 +1,23 @@
+repos:
+  # Ruff (lint + autofix)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.8
+    hooks:
+      - id: ruff
+        args: [--fix]   # auto-fix lint issues
+      - id: ruff-format  # replaces black (faster)
+
+  # Optional: keep black ONLY if you insist (otherwise remove it)
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+
+  # Misc sanity checks (highly recommended)
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-added-large-files

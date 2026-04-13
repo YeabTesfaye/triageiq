@@ -60,15 +60,15 @@ packages = ["app"]
 target-version = "py312"
 line-length = 100
 src = ["app", "tests"]
-exclude = ["alembic"] 
+exclude = ["alembic"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "C4", "UP"]
 ignore = [
-    "B008",   
-    "B904",  
-    "UP042", 
-    "F821",   
+    "B008",
+    "B904",
+    "UP042",
+    "F821",
 ]
 
 
@@ -106,6 +106,7 @@ show_missing = true
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4.5.1",
     "ruff>=0.15.9",
     "types-bleach>=6.3.0.20260402",
 ]
