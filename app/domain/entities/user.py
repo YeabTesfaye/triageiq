@@ -2,6 +2,7 @@
 User entity — SQLAlchemy ORM model with domain invariants.
 The model owns its own field-level constraints.
 """
+
 import uuid
 from datetime import UTC, datetime
 

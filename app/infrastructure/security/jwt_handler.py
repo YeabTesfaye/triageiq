@@ -134,5 +134,3 @@ def get_token_remaining_ttl(exp_unix: int) -> int:
     """Return remaining seconds until token expiry (floor 0)."""
     remaining = exp_unix - int(datetime.now(UTC).timestamp())
     return max(0, remaining)
-
-

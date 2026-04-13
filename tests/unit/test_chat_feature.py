@@ -41,6 +41,7 @@ class _FakeTicket:
         self.id = uuid.uuid4()
         self.user_id = user_id
         self.description = "Test ticket"
+        self.status  = "open"
 
 
 # ---------------------------------------------------------------------------
@@ -364,8 +365,6 @@ class TestSendMessageRequest:
     def test_exactly_2000_chars_passes(self):
         req = self._make("a" * 2000)
         assert len(req.content) == 2000
-
-
 
 
 class TestIsAdmin:

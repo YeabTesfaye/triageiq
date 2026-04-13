@@ -11,6 +11,7 @@ Design principles followed:
   - Results are reversed after the DESC fetch so callers always receive
     messages in ascending (chronological) order.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -61,7 +62,7 @@ class ChatRepository:
         *,
         limit: int = 50,
         before_id: uuid.UUID | None = None,
-        offset : int | None = None
+        offset: int | None = None,
     ) -> tuple[Sequence[Message], int]:
         """
         Return a page of messages for *ticket_id*, ordered oldest-first,
@@ -94,10 +95,7 @@ class ChatRepository:
         # Fetch newest-first (DESC) so LIMIT efficiently trims at the "top",
         # then reverse so callers always receive chronological (ASC) order.
         rows_stmt = (
-            select(Message)
-            .where(base_filter)
-            .order_by(Message.created_at.desc())
-            .limit(limit)
+            select(Message).where(base_filter).order_by(Message.created_at.desc()).limit(limit)
         )
         rows: Sequence[Message] = (await self._session.scalars(rows_stmt)).all()
         return list(reversed(rows)), total

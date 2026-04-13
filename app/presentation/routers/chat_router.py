@@ -5,6 +5,7 @@ Chat router — 3 endpoints.
   GET  /{ticket_id}/thread         open chat window (ticket + messages, 1 call)
   GET  /{ticket_id}/messages       load older messages (cursor pagination)
 """
+
 from __future__ import annotations
 
 import uuid
@@ -29,15 +30,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 log = structlog.get_logger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-#------------------------
+
+# ------------------------
 # Helper function
-#---------------
+# ---------------
 def _is_admin(user: User) -> bool:
-    return str(user.role) in {"admin", "superadmin", "moderator"}
+    role = getattr(user.role, "value", user.role)
+    return role in {"admin", "superadmin", "moderator"}
 
 # ------------------------------------------------------------------
 # Dependency
 # ------------------------------------------------------------------
+
 
 def _get_chat_service(db: AsyncSession = Depends(get_db_session)) -> ChatService:
     return ChatService(
@@ -53,8 +57,8 @@ def _get_chat_service(db: AsyncSession = Depends(get_db_session)) -> ChatService
 
 _ERROR_CODE_TO_STATUS: dict[str, int] = {
     "TICKET_NOT_FOUND": status.HTTP_404_NOT_FOUND,
-    "TICKET_CLOSED":    status.HTTP_409_CONFLICT,
-    "ACCESS_DENIED":    status.HTTP_403_FORBIDDEN,
+    "TICKET_CLOSED": status.HTTP_409_CONFLICT,
+    "ACCESS_DENIED": status.HTTP_403_FORBIDDEN,
 }
 
 
@@ -66,6 +70,7 @@ def _chat_error_to_http(exc: ChatError) -> HTTPException:
 # ------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------
+
 
 def _build_list_response(
     messages,
@@ -80,11 +85,13 @@ def _build_list_response(
         "limit": limit,
         "has_more": next_cursor is not None,
         "next_cursor": next_cursor,
-}
+    }
+
 
 # ------------------------------------------------------------------
 # Routes
 # ------------------------------------------------------------------
+
 
 @router.post(
     "/{ticket_id}/messages",
@@ -158,7 +165,7 @@ async def get_thread(
     return ThreadResponse(
         ticket=TicketSummary(
             id=ticket.id,
-            subject=ticket.message,   # original ticket description
+            subject=ticket.message,  # original ticket description
             status=ticket.status,
             category=ticket.category,
             priority=ticket.priority,
@@ -179,8 +186,7 @@ async def list_messages(
     before_id: uuid.UUID | None = Query(
         None,
         description=(
-            "Cursor for loading older messages. "
-            "Pass next_cursor from the previous response."
+            "Cursor for loading older messages. " "Pass next_cursor from the previous response."
         ),
     ),
     limit: int = Query(50, ge=1, le=100, description="Page size (1-100)."),
@@ -208,5 +214,3 @@ async def list_messages(
         raise _chat_error_to_http(exc) from exc
 
     return MessageListResponse(**_build_list_response(messages, total, limit))
-
-

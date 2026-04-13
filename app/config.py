@@ -104,4 +104,3 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Cached settings singleton — call this everywhere."""
     return Settings()
-

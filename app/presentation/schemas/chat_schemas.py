@@ -12,6 +12,7 @@ Design decisions:
   - ThreadResponse: the "open chat window" payload. One HTTP call returns
     ticket context + first page of messages, eliminating two sequential requests.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -24,6 +25,7 @@ from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 # ---------------------------------------------------------------------------
 # Request
 # ---------------------------------------------------------------------------
+
 
 class SendMessageRequest(BaseModel):
     content: str
@@ -43,6 +45,7 @@ class SendMessageRequest(BaseModel):
 # Message
 # ---------------------------------------------------------------------------
 
+
 class MessageResponse(BaseModel):
     """
     A single chat message.
@@ -51,11 +54,12 @@ class MessageResponse(BaseModel):
     not two separate field checks. sender_id is still present for
     "is this my own message?" optimistic-UI detection.
     """
+
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    sender_id: uuid.UUID | None   # None for AI messages
-    sender_role: str              # "user" | "superadmin" | "admin" | "assistant"
+    sender_id: uuid.UUID | None  # None for AI messages
+    sender_role: str  # "user" | "superadmin" | "admin" | "assistant"
     content: str
     created_at: datetime
 
@@ -70,6 +74,7 @@ class MessageResponse(BaseModel):
 # Paginated message list  (GET /{ticket_id}/messages)
 # ---------------------------------------------------------------------------
 
+
 class MessageListResponse(BaseModel):
     """
     Cursor-paginated list of messages.
@@ -80,6 +85,7 @@ class MessageListResponse(BaseModel):
       2. Load more: GET /{ticket_id}/messages?before_id=<next_cursor>&limit=50
       3. has_more=false -> beginning of thread reached.
     """
+
     messages: Sequence[MessageResponse]
     total: int
     limit: int
@@ -91,12 +97,14 @@ class MessageListResponse(BaseModel):
 # Thread  (GET /{ticket_id}/thread)
 # ---------------------------------------------------------------------------
 
+
 class TicketSummary(BaseModel):
     """Minimal ticket context needed to render a chat window header."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    subject: str          # mapped from ticket.message
+    subject: str  # mapped from ticket.message
     status: str
     category: str | None
     priority: str | None
@@ -111,6 +119,7 @@ class ThreadResponse(BaseModel):
     the frontend calls GET /chat/{id}/thread and gets both.
     Pagination works identically to MessageListResponse.
     """
+
     ticket: TicketSummary
     messages: Sequence[MessageResponse]
     total: int
