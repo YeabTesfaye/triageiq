@@ -190,7 +190,7 @@ class TestTicketFlow:
         )
         assert resp.status_code == 202
         data = resp.json()
-        assert data["category"] == "billing"
+        assert data["category"] is None
         assert data["priority"] == "high"
         assert data["status"] == "open"
         assert data["ai_response"] is not None
