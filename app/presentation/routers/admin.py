@@ -206,7 +206,7 @@ async def delete_user(
 
 
 @router.get(
-    "/tickets",
+    "/ticket",
     response_model=AdminTicketListResponse,
     summary="List all tickets across all users (MODERATOR+)",
 )
