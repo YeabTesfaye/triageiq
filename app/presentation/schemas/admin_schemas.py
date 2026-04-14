@@ -117,6 +117,8 @@ class AuditLogListResponse(BaseModel):
 
 class AnalyticsResponse(BaseModel):
     total_tickets: int
+    ai_processing: int  # tickets still waiting for AI enrichment
+    by_status: dict[str, int]
     by_category: dict[str, int]
     by_priority: dict[str, int]
-    by_status: dict[str, int]
+    scope: str  # "user" | "global" — tells the client which view this is

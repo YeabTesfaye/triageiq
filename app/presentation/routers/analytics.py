@@ -6,7 +6,6 @@ Users see own stats; admins see global stats.
 from app.application.services.analytics_service import AnalyticsService
 from app.dependencies import get_current_user
 from app.domain.entities.user import User
-from app.domain.enums import Role
 from app.infrastructure.database import get_db_session
 from app.presentation.schemas.admin_schemas import AnalyticsResponse
 from app.repositories.ticket_repository import TicketRepository
@@ -31,16 +30,18 @@ async def get_analytics(
     current_user: User = Depends(get_current_user),
     service: AnalyticsService = Depends(_get_analytics_service),
 ):
-    is_admin = Role(current_user.role) in (Role.ADMIN, Role.SUPERADMIN, Role.MODERATOR)
-
-    if is_admin:
+    if current_user.is_staff:  # use the property already on User entity
         stats = await service.get_global_stats()
+        scope = "global"
     else:
         stats = await service.get_user_stats(current_user.id)
+        scope = "user"
 
     return AnalyticsResponse(
-        total_tickets=stats.get("total", 0),
-        by_category=stats.get("by_category", {}),
-        by_priority=stats.get("by_priority", {}),
-        by_status=stats.get("by_status", {}),
+        total_tickets=stats["total"],
+        ai_processing=stats["ai_processing"],
+        by_status=stats["by_status"],
+        by_category=stats["by_category"],
+        by_priority=stats["by_priority"],
+        scope=scope,
     )

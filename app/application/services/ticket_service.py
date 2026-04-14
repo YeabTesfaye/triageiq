@@ -8,6 +8,7 @@ from collections.abc import Sequence
 
 import structlog
 from app.domain.entities.ticket import Ticket
+from app.domain.enums import TicketStatus
 from app.infrastructure.ai.openai_client import AIServiceError, get_openai_client
 from app.repositories.ticket_repository import TicketRepository
 
@@ -17,47 +18,6 @@ log = structlog.get_logger(__name__)
 class TicketService:
     def __init__(self, ticket_repo: TicketRepository) -> None:
         self._tickets = ticket_repo
-
-    async def create_ticket(
-        self,
-        *,
-        user_id: uuid.UUID,
-        message: str,
-    ) -> Ticket:
-        """
-        Create a ticket and enrich it with AI triage.
-        If AI is unavailable, ticket is saved in degraded mode (no category/priority).
-        AIServiceError is re-raised so the router can return a structured error
-        while still returning the partially saved ticket ID.
-        """
-        ai_client = get_openai_client()
-        ai_analysis = None
-        ai_error: AIServiceError | None = None
-
-        try:
-            ai_analysis = await ai_client.analyze_ticket(message)
-            log.info(
-                "ticket_ai_analysis_complete",
-                category=ai_analysis.category,
-                priority=ai_analysis.priority,
-            )
-        except AIServiceError as e:
-            log.error("ticket_ai_analysis_failed", error=str(e))
-            ai_error = e
-
-        ticket = await self._tickets.create(
-            user_id=user_id,
-            message=message,
-            category=ai_analysis.category if ai_analysis else None,
-            priority=ai_analysis.priority if ai_analysis else None,
-            ai_response=ai_analysis.ai_response if ai_analysis else None,
-            ai_raw=ai_analysis.model_dump() if ai_analysis else None,
-        )
-
-        if ai_error:
-            raise ai_error  # re-raise with ticket already saved
-
-        return ticket
 
     async def get_user_tickets(
         self,
@@ -78,3 +38,70 @@ class TicketService:
 
     async def get_user_stats(self, user_id: uuid.UUID) -> dict:
         return await self._tickets.get_stats_for_user(user_id)
+
+    async def delete_ticket_for_owner(
+        self,
+        ticket_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> bool:
+        """
+        Delete a ticket if it belongs to the user.
+        Returns False if not found or not owner.
+        """
+        ticket = await self._tickets.get_by_id_and_user(ticket_id, user_id)
+        if ticket is None:
+            return False
+
+        return await self._tickets.delete(ticket_id)
+
+    async def update_ticket_status_for_owner(
+        self,
+        ticket_id: uuid.UUID,
+        user_id: uuid.UUID,
+        status: TicketStatus,
+    ) -> Ticket | None:
+        """
+        Update ticket status if owned by user.
+        Returns None if not found or not owner.
+        """
+        ticket = await self._tickets.get_by_id_and_user(ticket_id, user_id)
+        if ticket is None:
+            return None
+
+        return await self._tickets.update_status(ticket_id, status)
+
+    async def create_ticket_pending(
+        self,
+        *,
+        user_id: uuid.UUID,
+        message: str,
+    ) -> Ticket:
+        """Save ticket immediately with no AI enrichment yet."""
+        return await self._tickets.create(
+            user_id=user_id,
+            message=message,
+        )
+
+    async def run_ai_analysis(self, ticket_id: uuid.UUID) -> None:
+        """
+        Called from BackgroundTasks after the 202 is already sent.
+        Enriches the saved ticket with AI results.
+        Failures are logged but not re-raised — the ticket stays in degraded mode.
+        """
+        ticket = await self._tickets.get_by_id(ticket_id)
+        if ticket is None:
+            log.error("bg_ai_analysis_ticket_not_found", ticket_id=str(ticket_id))
+            return
+
+        ai_client = get_openai_client()
+        try:
+            ai_analysis = await ai_client.analyze_ticket(ticket.message)
+            await self._tickets.update_ai_fields(ticket_id, ai_analysis)
+            log.info(
+                "bg_ai_analysis_complete",
+                ticket_id=str(ticket_id),
+                category=ai_analysis.category,
+                priority=ai_analysis.priority,
+            )
+        except AIServiceError as e:
+            log.error("bg_ai_analysis_failed", ticket_id=str(ticket_id), error=str(e))

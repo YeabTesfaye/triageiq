@@ -142,44 +142,95 @@ class TicketRepository:
         assert isinstance(result, CursorResult)
         return result.rowcount > 0
 
-    async def get_stats_for_user(self, user_id: uuid.UUID) -> dict[str, Any]:
-        """Per-user ticket statistics."""
+    async def update_ai_fields(
+        self,
+        ticket_id: uuid.UUID,
+        ai_analysis,  # TicketAnalysis from your openai_client
+    ) -> Ticket | None:
         stmt = (
-            select(
-                func.count(Ticket.id).label("total"),
-                Ticket.status,
+            update(Ticket)
+            .where(Ticket.id == ticket_id)
+            .values(
+                category=ai_analysis.category.value if ai_analysis.category else None,
+                priority=ai_analysis.priority.value if ai_analysis.priority else None,
+                ai_response=ai_analysis.ai_response,
+                ai_raw=ai_analysis.model_dump(),
+                updated_at=datetime.now(UTC),
             )
-            .where(Ticket.user_id == user_id)
-            .group_by(Ticket.status)
+            .returning(Ticket)
         )
-        rows = (await self._session.execute(stmt)).all()
-        stats: dict[str, Any] = {"total": 0, "by_status": {}}
-        for row in rows:
-            stats["by_status"][row.status] = row.total
-            stats["total"] += row.total
-        return stats
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_stats_for_user(self, user_id: uuid.UUID) -> dict[str, Any]:
+        """Per-user ticket statistics — matches global stats shape."""
+        base = Ticket.user_id == user_id
+
+        by_status_stmt = (
+            select(Ticket.status, func.count(Ticket.id)).where(base).group_by(Ticket.status)
+        )
+        by_category_stmt = (
+            select(Ticket.category, func.count(Ticket.id)).where(base).group_by(Ticket.category)
+        )
+        by_priority_stmt = (
+            select(Ticket.priority, func.count(Ticket.id)).where(base).group_by(Ticket.priority)
+        )
+        ai_processing_stmt = select(func.count(Ticket.id)).where(
+            and_(base, Ticket.category.is_(None), Ticket.ai_raw.is_(None))
+        )
+
+        by_sta = dict((await self._session.execute(by_status_stmt)).all())
+        by_cat = dict((await self._session.execute(by_category_stmt)).all())
+        by_pri = dict((await self._session.execute(by_priority_stmt)).all())
+        ai_processing = (await self._session.execute(ai_processing_stmt)).scalar_one()
+
+        # Remove None key that appears for tickets pending AI enrichment
+        by_cat.pop(None, None)
+        by_pri.pop(None, None)
+
+        return {
+            "total": sum(by_sta.values()),
+            "ai_processing": ai_processing,
+            "by_status": {k: v for k, v in by_sta.items() if k},  # keep (has condition)
+            "by_category": dict(by_cat),  # ✅ fixed
+            "by_priority": dict(by_pri),  # ✅ fixed
+        }
 
     async def get_global_stats(self) -> dict[str, Any]:
-        """Global analytics for admin view."""
-        total_stmt = select(func.count(Ticket.id))
-        total = (await self._session.execute(total_stmt)).scalar_one()
+        """Global analytics — 2 queries instead of 4."""
+        # Single query for all group-by breakdowns
+        breakdown_stmt = select(
+            Ticket.status,
+            Ticket.category,
+            Ticket.priority,
+            func.count(Ticket.id).label("cnt"),
+        ).group_by(Ticket.status, Ticket.category, Ticket.priority)
 
-        by_category_stmt = select(Ticket.category, func.count(Ticket.id)).group_by(Ticket.category)
-        by_priority_stmt = select(Ticket.priority, func.count(Ticket.id)).group_by(Ticket.priority)
-        by_status_stmt = select(Ticket.status, func.count(Ticket.id)).group_by(Ticket.status)
+        rows = (await self._session.execute(breakdown_stmt)).all()
 
-        by_cat: dict[str, int] = {
-            str(r[0]): int(r[1]) for r in (await self._session.execute(by_category_stmt)).all()
-        }
-        by_pri: dict[str, int] = {
-            str(r[0]): int(r[1]) for r in (await self._session.execute(by_priority_stmt)).all()
-        }
-        by_sta: dict[str, int] = {
-            str(r[0]): int(r[1]) for r in (await self._session.execute(by_status_stmt)).all()
-        }
+        by_sta: dict[str, int] = {}
+        by_cat: dict[str, int] = {}
+        by_pri: dict[str, int] = {}
+        total = 0
+
+        for status, category, priority, cnt in rows:
+            total += cnt
+            by_sta[status] = by_sta.get(status, 0) + cnt
+            if category:
+                by_cat[category] = by_cat.get(category, 0) + cnt
+            if priority:
+                by_pri[priority] = by_pri.get(priority, 0) + cnt
+
+        # Tickets still pending AI enrichment
+        ai_processing_stmt = select(func.count(Ticket.id)).where(
+            and_(Ticket.category.is_(None), Ticket.ai_raw.is_(None))
+        )
+        ai_processing = (await self._session.execute(ai_processing_stmt)).scalar_one()
+
         return {
             "total": total,
+            "ai_processing": ai_processing,
+            "by_status": by_sta,
             "by_category": by_cat,
             "by_priority": by_pri,
-            "by_status": by_sta,
         }
