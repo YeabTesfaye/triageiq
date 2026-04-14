@@ -40,9 +40,7 @@ limiter = Limiter(
 
 
 # ── Properly typed rate limit handler ──────────────────────────────────────────
-async def rate_limit_handler(
-    request: Request, exc: Exception
-) -> Response:
+async def rate_limit_handler(request: Request, exc: Exception) -> Response:
     return await _rate_limit_exceeded_handler(request, exc)  # type: ignore
 
 
@@ -138,9 +136,7 @@ def create_app() -> FastAPI:
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         if settings.ENV == "production":
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=31536000; includeSubDomains"
-            )
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         return response
 
     # ── Metrics ────────────────────────────────────────────────────────────────
@@ -190,11 +186,7 @@ def create_app() -> FastAPI:
             checks["redis"] = "error"
         all_ok = all(v == "ok" for v in checks.values())
         return JSONResponse(
-            status_code=(
-                status.HTTP_200_OK
-                if all_ok
-                else status.HTTP_503_SERVICE_UNAVAILABLE
-            ),
+            status_code=(status.HTTP_200_OK if all_ok else status.HTTP_503_SERVICE_UNAVAILABLE),
             content={
                 "status": "ok" if all_ok else "degraded",
                 "checks": checks,

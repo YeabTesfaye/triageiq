@@ -20,7 +20,7 @@ from app.repositories.ticket_repository import TicketRepository
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-router = APIRouter(prefix="/tickets", tags=["Tickets"])
+router = APIRouter(prefix="/ticket", tags=["Tickets"])
 
 
 def _get_ticket_service(

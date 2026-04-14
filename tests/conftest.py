@@ -18,9 +18,9 @@ from app.domain.enums import Role, TicketCategory, TicketPriority, TicketStatus,
 from app.infrastructure.database import Base, get_db_session
 from app.infrastructure.security.jwt_handler import create_access_token
 from app.infrastructure.security.password_handler import hash_password
+from app.main import create_app
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from main import create_app
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # ── In-memory SQLite engine ────────────────────────────────────────────────────
