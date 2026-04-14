@@ -188,7 +188,7 @@ class TestTicketFlow:
             json={"message": "My payment failed and I cannot access premium features."},
             headers={"Authorization": f"Bearer {token}"},
         )
-        assert resp.status_code == 201
+        assert resp.status_code == 202
         data = resp.json()
         assert data["category"] == "billing"
         assert data["priority"] == "high"

@@ -71,7 +71,7 @@ class TestTicketService:
             return_value=_mock_ai_result(),
         ):
             service = TicketService(ticket_repo=ticket_repo)
-            await service.create_ticket(
+            await service.create_ticket_pending(
                 user_id=uuid.uuid4(),
                 message="My payment failed and I need help urgently.",
             )
@@ -95,7 +95,7 @@ class TestTicketService:
         ):
             service = TicketService(ticket_repo=ticket_repo)
             with pytest.raises(AIServiceError):
-                await service.create_ticket(
+                await service.create_ticket_pending(
                     user_id=uuid.uuid4(),
                     message="My payment failed and I need help urgently.",
                 )

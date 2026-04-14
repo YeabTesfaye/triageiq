@@ -21,10 +21,8 @@ jobs:
         run: uv python install ${{ env.PYTHON_VERSION }}
       - name: Install dependencies
         run: uv sync --frozen --all-extras
-      - name: Run ruff
-        run: uv run ruff check app/ tests/
-      - name: Run black
-        run: uv run black --check app/ tests/
+      - name: Run ruff (lint + format check)
+        run : uv run ruff check app/ tests/ --fix --exit-non-zero-on-fix
 
   typecheck:
     name: Type Check
@@ -95,8 +93,8 @@ jobs:
             --cov-report=term-missing \
             --cov-fail-under=70 \
             -v
-      - name: Check for migrations 
-        run : uv run alembic check 
+      - name: Check for migrations
+        run : uv run alembic check
       - name: Run migrations
         env:
           DATABASE_URL: "postgresql+asyncpg://triageiq:triageiq@localhost:5432/triageiq"

@@ -179,9 +179,15 @@ class TicketRepository:
             and_(base, Ticket.category.is_(None), Ticket.ai_raw.is_(None))
         )
 
-        by_sta = dict((await self._session.execute(by_status_stmt)).all())
-        by_cat = dict((await self._session.execute(by_category_stmt)).all())
-        by_pri = dict((await self._session.execute(by_priority_stmt)).all())
+        by_sta: dict[str, int] = {
+            row[0]: row[1] for row in (await self._session.execute(by_status_stmt)).all()
+        }
+        by_cat: dict[str, int] = {
+            row[0]: row[1] for row in (await self._session.execute(by_category_stmt)).all()
+        }
+        by_pri: dict[str, int] = {
+            row[0]: row[1] for row in (await self._session.execute(by_priority_stmt)).all()
+        }
         ai_processing = (await self._session.execute(ai_processing_stmt)).scalar_one()
 
         # Remove None key that appears for tickets pending AI enrichment
