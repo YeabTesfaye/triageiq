@@ -191,7 +191,7 @@ class TestTicketFlow:
         token = login.json()["access_token"]
 
         resp = await client.post(
-            "/api/v1/tickets",
+            "/api/v1/ticket",
             json={"message": "My payment failed and I cannot access premium features."},
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -212,7 +212,7 @@ class TestTicketFlow:
     @pytest.mark.asyncio
     async def test_create_ticket_requires_auth(self, client):
         resp = await client.post(
-            "/api/v1/tickets",
+            "/api/v1/ticket",
             json={"message": "This should fail without a token."},
         )
         assert resp.status_code == 401
@@ -230,7 +230,7 @@ class TestTicketFlow:
         )
         token = login.json()["access_token"]
         resp = await client.post(
-            "/api/v1/tickets",
+            "/api/v1/ticket",
             json={"message": "Short"},
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -256,7 +256,7 @@ class TestTicketFlow:
 
         # User A creates a ticket
         r = await client.post(
-            "/api/v1/tickets",
+            "/api/v1/ticket",
             json={"message": "This is User A's private billing question."},
             headers={"Authorization": f"Bearer {token_a}"},
         )
@@ -264,7 +264,7 @@ class TestTicketFlow:
 
         # User B tries to read it — must get 404
         resp = await client.get(
-            f"/api/v1/tickets/{ticket_id}",
+            f"/api/v1/ticket/{ticket_id}",
             headers={"Authorization": f"Bearer {token_b}"},
         )
         assert resp.status_code == 404
@@ -286,12 +286,12 @@ class TestTicketFlow:
         # Create 2 tickets
         for _ in range(2):
             await client.post(
-                "/api/v1/tickets",
+                "/api/v1/ticket",
                 json={"message": "Billing question that needs urgent attention please."},
                 headers=headers,
             )
 
-        resp = await client.get("/api/v1/tickets", headers=headers)
+        resp = await client.get("/api/v1/ticket", headers=headers)
         assert resp.status_code == 200
         data = resp.json()
         assert data["total"] >= 2
@@ -327,7 +327,7 @@ class TestAdminFlow:
 
         token, _, _ = create_access_token(str(mod.id), Role.MODERATOR.value)
         resp = await client.get(
-            "/api/v1/admin/tickets",
+            "/api/v1/admin/ticket",
             headers={"Authorization": f"Bearer {token}"},
         )
         assert resp.status_code == 200

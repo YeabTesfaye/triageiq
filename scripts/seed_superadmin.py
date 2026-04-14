@@ -11,6 +11,7 @@ Usage:
     # Or prompt interactively (no password in shell history):
     uv run python scripts/seed_superadmin.py --email admin@company.com --name "Super Admin"
 """
+
 import argparse
 import asyncio
 import getpass
@@ -36,12 +37,17 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 def _log(level: str, event: str, **kwargs) -> None:
     """Minimal structured JSON logger — no dependency on app logging setup."""
-    print(json.dumps({
-        "timestamp": datetime.now(UTC).isoformat(),
-        "level": level,
-        "event": event,
-        **kwargs,
-    }), flush=True)
+    print(
+        json.dumps(
+            {
+                "timestamp": datetime.now(UTC).isoformat(),
+                "level": level,
+                "event": event,
+                **kwargs,
+            }
+        ),
+        flush=True,
+    )
 
 
 def _mask_email(email: str) -> str:
@@ -64,7 +70,7 @@ async def _write_audit_log(
     The actor_id is NULL for system-initiated actions (seed script).
     """
     log_entry = AuditLog(
-        actor_id=None,          # system action — no human actor
+        actor_id=None,  # system action — no human actor
         actor_role="system",
         action=action.value,
         target_type="user",
@@ -88,6 +94,9 @@ async def seed_superadmin(
     """
     Returns 0 on success, 1 on failure.
     """
+    # Normalize email (important!)
+    email = email.lower().strip()
+
     # Validate password before touching the DB
     valid, msg = validate_password_strength(password)
     if not valid:
@@ -104,35 +113,51 @@ async def seed_superadmin(
                 stmt = select(User).where(User.email == email)
                 existing = (await session.execute(stmt)).scalar_one_or_none()
 
+                # ------------------------------------------------------------------
+                # EXISTING USER → UPDATE (role + password)
+                # ------------------------------------------------------------------
                 if existing:
-                    if existing.role == Role.SUPERADMIN.value:
-                        _log("info", "already_superadmin",
-                             email=_mask_email(email))
-                        return 0
-
-                    before = {"role": existing.role, "status": existing.status}
+                    before = {
+                        "role": existing.role,
+                        "status": existing.status,
+                    }
 
                     if not dry_run:
                         existing.role = Role.SUPERADMIN.value
                         existing.status = UserStatus.ACTIVE.value
+
+                        # 🔥 CRITICAL FIX: update password
+                        existing.password_hash = hash_password(password)
+
                         await _write_audit_log(
                             session,
                             action=AuditAction.USER_ROLE_CHANGE,
                             target_id=existing.id,
                             before_state=before,
-                            after_state={"role": Role.SUPERADMIN.value,
-                                         "status": UserStatus.ACTIVE.value},
+                            after_state={
+                                "role": Role.SUPERADMIN.value,
+                                "status": UserStatus.ACTIVE.value,
+                                "password_updated": True,
+                            },
                         )
-                        _log("info", "promoted_to_superadmin",
-                             email=_mask_email(email),
-                             user_id=str(existing.id))
+
+                        _log(
+                            "info",
+                            "superadmin_updated",
+                            email=_mask_email(email),
+                            user_id=str(existing.id),
+                        )
                     else:
-                        _log("info", "dry_run_would_promote",
-                             email=_mask_email(email),
-                             from_role=existing.role)
+                        _log(
+                            "info",
+                            "dry_run_would_update",
+                            email=_mask_email(email),
+                        )
                     return 0
 
-                # New user
+                # ------------------------------------------------------------------
+                # NEW USER → CREATE
+                # ------------------------------------------------------------------
                 if not dry_run:
                     user = User(
                         email=email,
@@ -143,7 +168,6 @@ async def seed_superadmin(
                         is_verified=True,
                     )
                     session.add(user)
-                    # Need the ID before writing audit log
                     await session.flush()
 
                     await _write_audit_log(
@@ -151,15 +175,21 @@ async def seed_superadmin(
                         action=AuditAction.USER_ROLE_CHANGE,
                         target_id=user.id,
                         before_state={},
-                        after_state={"role": Role.SUPERADMIN.value,
-                                     "created_by": "seed_script"},
+                        after_state={
+                            "role": Role.SUPERADMIN.value,
+                            "created_by": "seed_script",
+                        },
                     )
-                    _log("info", "superadmin_created",
-                         email=_mask_email(email),
-                         user_id=str(user.id))
+
+                    _log(
+                        "info",
+                        "superadmin_created",
+                        email=_mask_email(email),
+                        user_id=str(user.id),
+                    )
                 else:
-                    _log("info", "dry_run_would_create",
-                         email=_mask_email(email))
+                    _log("info", "dry_run_would_create", email=_mask_email(email))
+
                 return 0
 
     except Exception as exc:
@@ -173,15 +203,16 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Seed a SUPERADMIN user")
     parser.add_argument("--email", required=True)
     parser.add_argument("--name", default="Super Admin")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Preview what would happen without writing to DB")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Preview what would happen without writing to DB"
+    )
 
     # Secure password input: file path or interactive prompt
     pw_group = parser.add_mutually_exclusive_group()
-    pw_group.add_argument("--password-file",
-                          help="Path to file containing the password (e.g., Docker secret)")
-    pw_group.add_argument("--password",
-                          help="Password (avoid: visible in process list)")
+    pw_group.add_argument(
+        "--password-file", help="Path to file containing the password (e.g., Docker secret)"
+    )
+    pw_group.add_argument("--password", help="Password (avoid: visible in process list)")
     args = parser.parse_args()
 
     if args.password_file:
@@ -192,9 +223,7 @@ def main() -> None:
         # Safest: interactive prompt, not stored in shell history
         password = getpass.getpass("Password: ")
 
-    exit_code = asyncio.run(
-        seed_superadmin(args.email, password, args.name, dry_run=args.dry_run)
-    )
+    exit_code = asyncio.run(seed_superadmin(args.email, password, args.name, dry_run=args.dry_run))
     sys.exit(exit_code)
 
 
