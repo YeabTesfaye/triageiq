@@ -100,7 +100,11 @@ class Settings(BaseSettings):
         return v
 
 
-@lru_cache
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Cached settings singleton — call this everywhere."""
     return Settings()
+
+
+def clear_settings_cache() -> None:
+    get_settings.cache_clear()

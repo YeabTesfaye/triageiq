@@ -2,8 +2,14 @@
 Alembic async migration environment.
 Imports all models so autogenerate detects schema changes.
 """
+
 import asyncio
+import selectors
+import sys
 from logging.config import fileConfig
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 import app.domain.entities.audit_log  # noqa: F401
 import app.domain.entities.message  # noqa: F401

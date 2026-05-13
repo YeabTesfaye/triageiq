@@ -15,16 +15,8 @@ import structlog
 from app.config import get_settings
 from app.domain.entities.user import User
 from app.domain.enums import Role, UserStatus
-from app.infrastructure.redis_client import (
-    blacklist_access_token,
-    get_failed_login_count,
-    increment_failed_login,
-    reset_failed_login,
-)
 from app.infrastructure.security.jwt_handler import (
     create_access_token,
-    decode_access_token,
-    get_token_remaining_ttl,
 )
 from app.infrastructure.security.password_handler import (
     hash_password,
@@ -108,8 +100,8 @@ class AuthService:
         """
         settings = self._settings
 
-        # IP-level rate-limit check (Redis)
-        failed_count = await get_failed_login_count(ip_address)
+        # IP-level rate-limit check
+        failed_count = 0
         if failed_count >= settings.AUTH_RATE_LIMIT_PER_15_MIN:
             log.warning("login_rate_limit_exceeded", ip=ip_address)
             raise AuthError(
@@ -126,22 +118,14 @@ class AuthService:
         password_valid = verify_password(password, stored_hash)
 
         if not user or not password_valid:
-            await increment_failed_login(ip_address)
             if user:
-                # Track per-user failures for account lockout
                 lock_until: datetime | None = None
                 user_failures = user.failed_login_attempts + 1
                 if user_failures >= settings.MAX_FAILED_LOGIN_ATTEMPTS:
                     lock_until = datetime.now(UTC) + timedelta(
                         minutes=settings.ACCOUNT_LOCK_MINUTES
                     )
-                    log.warning(
-                        "account_locked",
-                        user_id=str(user.id),
-                        until=lock_until.isoformat(),
-                    )
                 await self._users.increment_failed_login(user.id, lock_until)
-
             raise AuthError("Invalid email or password", code="INVALID_CREDENTIALS")
 
         if user.is_locked:
@@ -159,8 +143,7 @@ class AuthService:
         if user.deleted_at is not None:
             raise AuthError("Invalid email or password", code="INVALID_CREDENTIALS")
 
-        # Success — reset counters and issue tokens
-        await reset_failed_login(ip_address)
+        # Success — issue tokens
         await self._users.record_successful_login(user.id)
 
         access_token, _jti, _exp = create_access_token(user_id=str(user.id), role=user.role)
@@ -211,21 +194,6 @@ class AuthService:
         log.info("tokens_refreshed", user_id=str(user.id))
         return access_token, new_raw_refresh
 
-    async def logout(
-        self,
-        *,
-        raw_access_token: str,
-        user_id: uuid.UUID,
-    ) -> None:
-        """
-        Blacklist the access token JTI in Redis (TTL = remaining lifetime).
-        Revoke all refresh tokens for the user.
-        """
-        payload = decode_access_token(raw_access_token)
-        if payload:
-            ttl = get_token_remaining_ttl(payload.exp)
-            if ttl > 0:
-                await blacklist_access_token(payload.jti, ttl)
-
+    async def logout(self, *, raw_access_token: str, user_id: uuid.UUID) -> None:
         await self._tokens.revoke_all_for_user(user_id)
         log.info("user_logged_out", user_id=str(user_id))

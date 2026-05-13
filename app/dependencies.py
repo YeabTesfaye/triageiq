@@ -22,16 +22,12 @@ import uuid
 from app.domain.entities.user import User
 from app.domain.enums import Role, UserStatus
 from app.infrastructure.database import AsyncSession, get_db_session
-from app.infrastructure.redis_client import (
-    get_user_token_cutoff,
-    is_token_blacklisted,
-)
 from app.infrastructure.security.jwt_handler import decode_access_token
 from app.repositories.user_repository import UserRepository
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-_bearer_scheme = HTTPBearer(auto_error=False)
+_bearer_scheme = HTTPBearer(auto_error=False, scheme_name="BearerAuth")
 
 _CREDENTIALS_EXCEPTION = HTTPException(
     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -40,25 +36,11 @@ _CREDENTIALS_EXCEPTION = HTTPException(
 )
 
 
-# ── Core Auth Dependency ───────────────────────────────────────────────────────
-
-
 async def get_current_user(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     session: AsyncSession = Depends(get_db_session),
 ) -> User:
-    """
-    Validate the Bearer JWT and return the authenticated User.
-
-    Checks performed (in order):
-    1. Token present and parseable
-    2. Signature and expiry valid
-    3. JTI not blacklisted in Redis
-    4. User exists and is not soft-deleted
-    5. User not suspended or banned
-    6. Token not issued before a per-user invalidation cutoff
-    """
     if credentials is None:
         raise _CREDENTIALS_EXCEPTION
 
@@ -66,11 +48,6 @@ async def get_current_user(
     if payload is None:
         raise _CREDENTIALS_EXCEPTION
 
-    # Redis blacklist check
-    if await is_token_blacklisted(payload.jti):
-        raise _CREDENTIALS_EXCEPTION
-
-    # Load user
     try:
         user_id = uuid.UUID(payload.sub)
     except ValueError:
@@ -88,12 +65,6 @@ async def get_current_user(
             detail="Account is suspended or banned",
         )
 
-    # Per-user cutoff: if user was suspended/re-activated, old tokens are invalid
-    cutoff = await get_user_token_cutoff(str(user_id))
-    if cutoff is not None and payload.iat < cutoff:
-        raise _CREDENTIALS_EXCEPTION
-
-    # Attach request metadata for downstream logging
     request.state.user_id = str(user_id)
     request.state.user_role = user.role
 
@@ -105,7 +76,6 @@ async def get_current_user_optional(
     credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     session: AsyncSession = Depends(get_db_session),
 ) -> User | None:
-    """Like get_current_user but returns None instead of raising for public routes."""
     if credentials is None:
         return None
     try:

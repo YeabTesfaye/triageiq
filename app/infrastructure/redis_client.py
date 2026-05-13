@@ -26,11 +26,20 @@ async def get_redis() -> Redis:
         from app.config import get_settings
 
         settings = get_settings()
+        import ssl
+
+        ssl_ctx = ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl.CERT_NONE
         _redis_client = aioredis.from_url(
             settings.REDIS_URL,
             encoding="utf-8",
             decode_responses=True,
             max_connections=20,
+            ssl_certfile=None,
+            ssl_keyfile=None,
+            ssl_ca_certs=None,
+            ssl_cert_reqs="none",
         )
     return _redis_client
 

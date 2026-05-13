@@ -129,10 +129,10 @@ cp .env.example .env
 # Set OPENAI_API_KEY, JWT_SECRET_KEY, and FIREBASE_CREDENTIALS at minimum
 
 # Start everything: postgres + redis + migrate + api
-docker compose -f docker/docker-compose.yml up --build
+docker compose -f docker-compose.yml up --build
 
 # Create the first superadmin (run once)
-docker compose -f docker/docker-compose.yml exec api \
+docker compose -f docker-compose.yml exec api \
   python scripts/seed_superadmin.py \
   --email admin@yourcompany.com \
   --name "Super Admin"
@@ -150,7 +150,7 @@ uv sync --all-extras
 cp .env.example .env
 
 # Start backing services only
-docker compose -f docker/docker-compose.yml up postgres redis -d
+docker compose -f docker-compose.yml up postgres redis -d
 
 uv run alembic upgrade head
 
@@ -423,7 +423,6 @@ triageiq/
 │   ├── conftest.py                    # Shared fixtures, SQLite test engine
 │   ├── unit/                          # Pure logic, fully mocked
 │   └── integration/                   # HTTP → service → DB flows
-├── docker/
 │   ├── Dockerfile                     # Multi-stage, non-root, pinned uv
 │   └── docker-compose.yml             # postgres + redis + migrate + api
 ├── scripts/

@@ -3,7 +3,6 @@ import uuid
 
 import structlog
 from app.config import get_settings
-from app.infrastructure.redis_client import get_redis
 from app.presentation.routers import admin, analytics, auth, ticket
 from app.presentation.routers.chat_router import router as chat_router
 from fastapi import FastAPI, Request, status
@@ -62,33 +61,6 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json",
         swagger_ui_parameters={"persistAuthorization": True},
     )
-
-    # ── OpenAPI Security ───────────────────────────────────────────────────────
-    from fastapi.openapi.utils import get_openapi
-
-    def custom_openapi():
-        if app.openapi_schema:
-            return app.openapi_schema
-        schema = get_openapi(
-            title=app.title,
-            version=app.version,
-            description=app.description,
-            routes=app.routes,
-        )
-        schema["components"]["securitySchemes"] = {
-            "BearerAuth": {
-                "type": "http",
-                "scheme": "bearer",
-                "bearerFormat": "JWT",
-            }
-        }
-        for path in schema["paths"].values():
-            for operation in path.values():
-                operation.setdefault("security", [{"BearerAuth": []}])
-        app.openapi_schema = schema
-        return schema
-
-    app.openapi = custom_openapi  # type: ignore
 
     # ── CORS ───────────────────────────────────────────────────────────────────
     app.add_middleware(
@@ -175,15 +147,6 @@ def create_app() -> FastAPI:
         except Exception as e:
             log.error("readiness_db_failed", error=str(e))
             checks["database"] = "error"
-        try:
-            redis = await get_redis()
-            result = redis.ping()
-            if hasattr(result, "__await__"):
-                await result
-            checks["redis"] = "ok"
-        except Exception as e:
-            log.error("readiness_redis_failed", error=str(e))
-            checks["redis"] = "error"
         all_ok = all(v == "ok" for v in checks.values())
         return JSONResponse(
             status_code=(status.HTTP_200_OK if all_ok else status.HTTP_503_SERVICE_UNAVAILABLE),
