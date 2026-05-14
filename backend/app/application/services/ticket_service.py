@@ -5,6 +5,7 @@ Orchestrates: ticket creation → AI analysis → persistence.
 
 import uuid
 from collections.abc import Sequence
+from typing import Literal
 
 import structlog
 from app.domain.entities.ticket import Ticket
@@ -25,8 +26,22 @@ class TicketService:
         *,
         limit: int = 20,
         offset: int = 0,
+        status: TicketStatus | None = None,
+        priority: Literal["high", "medium", "low"] | None = None,
+        search: str | None = None,
+        sort: Literal["created_at", "priority"] = "created_at",
+        order: Literal["asc", "desc"] = "desc",
     ) -> tuple[Sequence[Ticket], int]:
-        return await self._tickets.list_by_user(user_id, limit=limit, offset=offset)
+        return await self._tickets.list_by_user(
+            user_id,
+            limit=limit,
+            offset=offset,
+            status=status,
+            priority=priority,
+            search=search,
+            sort=sort,
+            order=order,
+        )
 
     async def get_ticket_for_owner(
         self,
@@ -51,7 +66,6 @@ class TicketService:
         ticket = await self._tickets.get_by_id_and_user(ticket_id, user_id)
         if ticket is None:
             return False
-
         return await self._tickets.delete(ticket_id)
 
     async def update_ticket_status_for_owner(
@@ -67,7 +81,6 @@ class TicketService:
         ticket = await self._tickets.get_by_id_and_user(ticket_id, user_id)
         if ticket is None:
             return None
-
         return await self._tickets.update_status(ticket_id, status)
 
     async def create_ticket_pending(

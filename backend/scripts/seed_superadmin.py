@@ -34,6 +34,9 @@ from app.infrastructure.security.password_handler import (
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 
 def _log(level: str, event: str, **kwargs) -> None:
     """Minimal structured JSON logger — no dependency on app logging setup."""

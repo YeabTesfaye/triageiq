@@ -1,41 +1,109 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { CheckCircle, AlertCircle } from 'lucide-react'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { CheckCircle, AlertCircle, Camera, Check } from 'lucide-react'
 
+// ─── Alert banner ────────────────────────────────────────────────────────────
 function Alert({ type, message }: { type: 'success' | 'error'; message: string }) {
   const Icon = type === 'success' ? CheckCircle : AlertCircle
   return (
-    <div className={`flex items-center gap-2 text-sm p-3 rounded-lg border ${
-      type === 'success'
-        ? 'text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-950 dark:border-green-800'
-        : 'text-destructive bg-destructive/10 border-destructive/20'
-    }`}>
-      <Icon size={14} className="shrink-0" />
+    <div
+      role="alert"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '10px 12px',
+        borderRadius: '8px',
+        fontSize: '13px',
+        backgroundColor:
+          type === 'success'
+            ? 'hsl(142 76% 36% / 0.08)'
+            : 'hsl(var(--destructive) / 0.08)',
+        border: `1px solid ${
+          type === 'success'
+            ? 'hsl(142 76% 36% / 0.25)'
+            : 'hsl(var(--destructive) / 0.25)'
+        }`,
+        color:
+          type === 'success'
+            ? 'hsl(142 76% 36%)'
+            : 'hsl(var(--destructive))',
+      }}
+    >
+      <Icon size={14} style={{ flexShrink: 0 }} />
       {message}
     </div>
   )
 }
 
+// ─── Section heading with brand left-border accent ───────────────────────────
+function SectionHeader({
+  title,
+  description,
+}: {
+  title: string
+  description: string
+}) {
+  return (
+    <div
+      style={{
+        borderLeft: '3px solid hsl(217 91% 60%)',
+        paddingLeft: '12px',
+        marginBottom: '4px',
+      }}
+    >
+      <p style={{ fontSize: '15px', fontWeight: 600, margin: 0, lineHeight: 1.3 }}>
+        {title}
+      </p>
+      <p
+        style={{
+          fontSize: '13px',
+          color: 'hsl(var(--muted-foreground))',
+          margin: '2px 0 0',
+        }}
+      >
+        {description}
+      </p>
+    </div>
+  )
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 export default function ProfilePage() {
   const { user, login, token } = useAuth()
 
-  const initials = user?.full_name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) ?? '?'
+  const initials =
+    user?.full_name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) ?? '?'
 
+  // Avatar upload
+  const [avatarSrc, setAvatarSrc] = useState<string | undefined>(undefined)
+  const [avatarHovered, setAvatarHovered] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => setAvatarSrc(ev.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  // Display name
   const [name, setName] = useState(user?.full_name ?? '')
   const [nameStatus, setNameStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
   const [nameSaving, setNameSaving] = useState(false)
-
-  const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' })
-  const [pwStatus, setPwStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
-  const [pwSaving, setPwSaving] = useState(false)
+  const [nameSaved, setNameSaved] = useState(false)
 
   const saveName = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,12 +114,21 @@ export default function ProfilePage() {
       await api.patch('/auth/me', { full_name: name.trim() })
       if (token) await login(token)
       setNameStatus({ type: 'success', msg: 'Name updated successfully.' })
+      // Inline button feedback
+      setNameSaved(true)
+      setTimeout(() => setNameSaved(false), 2000)
     } catch {
       setNameStatus({ type: 'error', msg: 'Failed to update name.' })
     } finally {
       setNameSaving(false)
     }
   }
+
+  // Password
+  const [passwords, setPasswords] = useState({ current: '', next: '', confirm: '' })
+  const [pwStatus, setPwStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwSaved, setPwSaved] = useState(false)
 
   const savePassword = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -72,6 +149,8 @@ export default function ProfilePage() {
       })
       setPasswords({ current: '', next: '', confirm: '' })
       setPwStatus({ type: 'success', msg: 'Password changed successfully.' })
+      setPwSaved(true)
+      setTimeout(() => setPwSaved(false), 2000)
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } }
       setPwStatus({ type: 'error', msg: e.response?.data?.detail ?? 'Failed to change password.' })
@@ -80,44 +159,162 @@ export default function ProfilePage() {
     }
   }
 
+  const labelStyle: React.CSSProperties = { fontSize: '13px', fontWeight: 500 }
+
   return (
-    <div className="max-w-xl space-y-6">
+    <div style={{ maxWidth: '560px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+      {/* Page heading */}
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
-        <p className="text-sm text-muted-foreground mt-1">Manage your account settings</p>
+        <h1 style={{ fontSize: '22px', fontWeight: 600, letterSpacing: '-0.01em', margin: 0 }}>
+          Profile
+        </h1>
+        <p style={{ fontSize: '14px', color: 'hsl(var(--muted-foreground))', margin: '4px 0 0' }}>
+          Manage your account settings
+        </p>
       </div>
 
-      {/* Identity card */}
+      {/* ── Identity card ── */}
       <Card>
-        <CardContent className="pt-6 flex items-center gap-4">
-          <Avatar className="h-16 w-16">
-            <AvatarFallback className="text-xl bg-primary text-primary-foreground font-semibold">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="font-semibold text-lg">{user?.full_name}</p>
-            <p className="text-sm text-muted-foreground">{user?.email}</p>
-            <div className="flex items-center gap-2 mt-1.5">
-              <Badge variant="outline" className="capitalize text-xs">{user?.role}</Badge>
-              <Badge variant={user?.status === 'active' ? 'default' : 'destructive'} className="capitalize text-xs">
-                {user?.status}
-              </Badge>
+        <CardContent style={{ paddingTop: '24px', paddingBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+
+            {/* Avatar with hover upload affordance */}
+            <div
+              style={{ position: 'relative', flexShrink: 0, cursor: 'pointer' }}
+              onMouseEnter={() => setAvatarHovered(true)}
+              onMouseLeave={() => setAvatarHovered(false)}
+              onClick={() => fileInputRef.current?.click()}
+              title="Upload photo"
+            >
+              {/* Outer ring */}
+              <div
+                style={{
+                  padding: '2px',
+                  borderRadius: '50%',
+                  border: '2px solid hsl(var(--border))',
+                  display: 'inline-flex',
+                }}
+              >
+                <Avatar style={{ width: '72px', height: '72px' }}>
+                  {avatarSrc && <AvatarImage src={avatarSrc} alt={user?.full_name} />}
+                  <AvatarFallback
+                    style={{
+                      fontSize: '22px',
+                      fontWeight: 600,
+                      background: 'hsl(217 91% 60%)',
+                      color: '#fff',
+                      width: '72px',
+                      height: '72px',
+                    }}
+                  >
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
+
+              {/* Camera overlay on hover */}
+              <div
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: '50%',
+                  background: 'rgba(0,0,0,0.45)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: avatarHovered ? 1 : 0,
+                  transition: 'opacity 0.15s ease',
+                }}
+              >
+                <Camera size={20} color="#fff" />
+              </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleAvatarChange}
+                aria-label="Upload profile photo"
+              />
+            </div>
+
+            {/* User info */}
+            <div>
+              <p style={{ fontWeight: 600, fontSize: '17px', margin: 0 }}>{user?.full_name}</p>
+              <p style={{ fontSize: '13px', color: 'hsl(var(--muted-foreground))', margin: '2px 0 8px' }}>
+                {user?.email}
+              </p>
+
+              {/* Consistent badge row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {/* Role badge — muted pill */}
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 500,
+                    padding: '2px 8px',
+                    borderRadius: '999px',
+                    background: 'hsl(var(--muted))',
+                    color: 'hsl(var(--muted-foreground))',
+                    textTransform: 'capitalize',
+                  }}
+                >
+                  {user?.role}
+                </span>
+
+                {/* Status badge — green dot + label */}
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 500,
+                    padding: '2px 8px',
+                    borderRadius: '999px',
+                    background:
+                      user?.status === 'active'
+                        ? 'hsl(142 76% 36% / 0.1)'
+                        : 'hsl(var(--destructive) / 0.1)',
+                    color:
+                      user?.status === 'active'
+                        ? 'hsl(142 76% 36%)'
+                        : 'hsl(var(--destructive))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    textTransform: 'capitalize',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background:
+                        user?.status === 'active'
+                          ? 'hsl(142 76% 36%)'
+                          : 'hsl(var(--destructive))',
+                      flexShrink: 0,
+                    }}
+                  />
+                  {user?.status}
+                </span>
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Edit name */}
+      {/* ── Display name ── */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Display Name</CardTitle>
-          <CardDescription>Update your full name</CardDescription>
+        <CardHeader style={{ paddingBottom: '16px' }}>
+          <SectionHeader title="Display Name" description="Update your full name" />
         </CardHeader>
         <CardContent>
-          <form onSubmit={saveName} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="name">Full name</Label>
+          <form onSubmit={saveName} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <Label htmlFor="name" style={labelStyle}>Full name</Label>
               <Input
                 id="name"
                 value={name}
@@ -125,30 +322,51 @@ export default function ProfilePage() {
                 placeholder="Your full name"
               />
             </div>
+
             {nameStatus && <Alert type={nameStatus.type} message={nameStatus.msg} />}
+
             <Button
               type="submit"
               size="sm"
               disabled={nameSaving || !name.trim() || name === user?.full_name}
+              style={{
+                alignSelf: 'flex-start',
+                backgroundColor: nameSaved ? 'hsl(142 76% 36%)' : 'hsl(217 91% 60%)',
+                color: '#fff',
+                border: 'none',
+                fontWeight: 500,
+                fontSize: '13px',
+                minWidth: '96px',
+                transition: 'background-color 0.2s ease',
+                opacity: nameSaving || (!name.trim() || name === user?.full_name) ? 0.6 : 1,
+              }}
             >
-              {nameSaving ? 'Saving…' : 'Save name'}
+              {nameSaving ? (
+                'Saving…'
+              ) : nameSaved ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <Check size={13} /> Saved
+                </span>
+              ) : (
+                'Save name'
+              )}
             </Button>
           </form>
         </CardContent>
       </Card>
 
-      <Separator />
-
-      {/* Change password */}
+      {/* ── Change password ── */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Change Password</CardTitle>
-          <CardDescription>Use a strong password of at least 8 characters</CardDescription>
+        <CardHeader style={{ paddingBottom: '16px' }}>
+          <SectionHeader
+            title="Change Password"
+            description="Use a strong password of at least 8 characters"
+          />
         </CardHeader>
         <CardContent>
-          <form onSubmit={savePassword} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="current">Current password</Label>
+          <form onSubmit={savePassword} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <Label htmlFor="current" style={labelStyle}>Current password</Label>
               <Input
                 id="current"
                 type="password"
@@ -157,8 +375,8 @@ export default function ProfilePage() {
                 required
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="new">New password</Label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <Label htmlFor="new" style={labelStyle}>New password</Label>
               <Input
                 id="new"
                 type="password"
@@ -167,8 +385,8 @@ export default function ProfilePage() {
                 required
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="confirm">Confirm new password</Label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <Label htmlFor="confirm" style={labelStyle}>Confirm new password</Label>
               <Input
                 id="confirm"
                 type="password"
@@ -177,13 +395,39 @@ export default function ProfilePage() {
                 required
               />
             </div>
+
             {pwStatus && <Alert type={pwStatus.type} message={pwStatus.msg} />}
-            <Button type="submit" size="sm" disabled={pwSaving}>
-              {pwSaving ? 'Changing…' : 'Change password'}
+
+            <Button
+              type="submit"
+              size="sm"
+              disabled={pwSaving}
+              style={{
+                alignSelf: 'flex-start',
+                backgroundColor: pwSaved ? 'hsl(142 76% 36%)' : 'hsl(217 91% 60%)',
+                color: '#fff',
+                border: 'none',
+                fontWeight: 500,
+                fontSize: '13px',
+                minWidth: '128px',
+                transition: 'background-color 0.2s ease',
+                opacity: pwSaving ? 0.6 : 1,
+              }}
+            >
+              {pwSaving ? (
+                'Changing…'
+              ) : pwSaved ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <Check size={13} /> Changed
+                </span>
+              ) : (
+                'Change password'
+              )}
             </Button>
           </form>
         </CardContent>
       </Card>
+
     </div>
   )
 }

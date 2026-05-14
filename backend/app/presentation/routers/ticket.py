@@ -4,10 +4,12 @@ Ownership enforced at the service layer; 404 returned for not-found OR not-owner
 """
 
 import uuid
+from typing import Literal
 
 from app.application.services.ticket_service import TicketService
 from app.dependencies import PaginationParams, get_current_user
 from app.domain.entities.user import User
+from app.domain.enums import TicketStatus
 from app.infrastructure.database import get_db_session
 from app.presentation.schemas.ticket_schemas import (
     CreateTicketRequest,
@@ -17,7 +19,7 @@ from app.presentation.schemas.ticket_schemas import (
     UpdateTicketStatusRequest,
 )
 from app.repositories.ticket_repository import TicketRepository
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/ticket", tags=["Tickets"])
@@ -52,17 +54,45 @@ async def create_ticket(
 @router.get(
     "",
     response_model=TicketListResponse,
-    summary="List your own tickets (paginated)",
+    summary="List your own tickets (paginated, filtered, sorted)",
 )
 async def list_tickets(
     current_user: User = Depends(get_current_user),
     pagination: PaginationParams = Depends(),
     service: TicketService = Depends(_get_ticket_service),
+    # Filter params — all optional; omitting means "no filter"
+    ticket_status: TicketStatus | None = Query(
+        default=None,
+        alias="status",
+        description="Filter by ticket status",
+    ),
+    priority: Literal["high", "medium", "low"] | None = Query(
+        default=None,
+        description="Filter by priority",
+    ),
+    search: str | None = Query(
+        default=None,
+        max_length=200,
+        description="Full-text search across message and category",
+    ),
+    sort: Literal["created_at", "priority"] = Query(
+        default="created_at",
+        description="Field to sort by",
+    ),
+    order: Literal["asc", "desc"] = Query(
+        default="desc",
+        description="Sort direction",
+    ),
 ):
     tickets, total = await service.get_user_tickets(
         current_user.id,
         limit=pagination.limit,
         offset=pagination.offset,
+        status=ticket_status,
+        priority=priority,
+        search=search,
+        sort=sort,
+        order=order,
     )
     return TicketListResponse(
         items=[TicketResponse.model_validate(t) for t in tickets],
@@ -102,13 +132,11 @@ async def delete_ticket(
         ticket_id=ticket_id,
         user_id=current_user.id,
     )
-
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Ticket not found",
         )
-
     return None
 
 
@@ -128,11 +156,9 @@ async def update_ticket_status(
         user_id=current_user.id,
         status=body.status,
     )
-
     if ticket is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Ticket not found",
         )
-
     return TicketResponse.model_validate(ticket)

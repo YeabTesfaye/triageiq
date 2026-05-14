@@ -5,7 +5,7 @@ Ticket repository — all database operations for the Ticket entity.
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 from app.domain.entities.ticket import Ticket
 from app.domain.enums import TicketCategory, TicketPriority, TicketStatus
@@ -54,13 +54,66 @@ class TicketRepository:
 
     async def list_by_user(
         self,
-        user_id: uuid.UUID,
+        user_id,
         *,
         limit: int = 20,
         offset: int = 0,
+        status: TicketStatus | None = None,
+        priority: Literal["high", "medium", "low"] | None = None,
+        search: str | None = None,
+        sort: Literal["created_at", "priority"] = "created_at",
+        order: Literal["asc", "desc"] = "desc",
     ) -> tuple[Sequence[Ticket], int]:
-        conditions: list[ColumnElement[bool]] = [Ticket.user_id == user_id]
-        return await self._paginated_query(conditions, limit=limit, offset=offset)
+        """
+        Return (tickets, total_count) for a user, with optional server-side
+        filtering, full-text search, and sorting.
+
+        total_count reflects the filtered set so the frontend can paginate
+        correctly over the filtered results rather than over all tickets.
+        """
+        base: Select = select(Ticket).where(Ticket.user_id == user_id)
+
+        # ── Filters ───────────────────────────────────────────────────────────────
+        if status is not None:
+            base = base.where(Ticket.status == status)
+
+        if priority is not None:
+            base = base.where(Ticket.priority == priority)
+
+        if search:
+            # Case-insensitive substring match across message and category.
+            # For production at scale, replace with a tsvector/GIN index query.
+            term = f"%{search.lower()}%"
+            base = base.where(Ticket.message.ilike(term) | Ticket.category.ilike(term))
+
+        # ── Total (before pagination) ─────────────────────────────────────────────
+        count_q = select(func.count()).select_from(base.subquery())
+        total: int = (await self._session.execute(count_q)).scalar_one()
+
+        # ── Sort ──────────────────────────────────────────────────────────────────
+        sort_col = Ticket.created_at if sort == "created_at" else Ticket.priority
+
+        # Priority has non-alphabetical semantics: high > medium > low.
+        # We map it to an integer so ORDER BY works correctly regardless of
+        # whether priority is stored as a plain string.
+        if sort == "priority":
+            from sqlalchemy import case
+
+            priority_rank = case(
+                (Ticket.priority == "high", 1),
+                (Ticket.priority == "medium", 2),
+                (Ticket.priority == "low", 3),
+                else_=4,
+            )
+            sort_expr = priority_rank.asc() if order == "asc" else priority_rank.desc()
+        else:
+            sort_expr = sort_col.asc() if order == "asc" else sort_col.desc()
+
+        query = base.order_by(sort_expr).limit(limit).offset(offset)
+
+        # ── Execute ───────────────────────────────────────────────────────────────
+        rows = (await self._session.execute(query)).scalars().all()
+        return rows, total
 
     async def list_all(
         self,
