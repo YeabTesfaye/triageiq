@@ -7,21 +7,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ArrowLeft, Trash2, Bot, Tag, Zap, Clock, RefreshCw } from 'lucide-react'
 import { TicketDetailSkeleton } from '@/components/ui/loading'
+import { capitalize } from '@/lib/utils'
+import type { Ticket, TicketStatus, TicketPriority, TicketCategory } from '@/types/ticket'
 
-const statusColor: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+const statusColor: Record<TicketStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   open: 'destructive',
   in_progress: 'secondary',
   resolved: 'default',
   closed: 'outline',
 }
 
-const priorityColor: Record<string, string> = {
+const priorityColor: Record<TicketPriority, string> = {
   high: 'text-red-500 bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800',
   medium: 'text-yellow-600 bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800',
   low: 'text-green-600 bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800',
 }
 
-const categoryIcon: Record<string, string> = {
+const categoryIcon: Record<TicketCategory, string> = {
   billing: '💳',
   technical: '🔧',
   general: '💬',
@@ -30,39 +32,39 @@ const categoryIcon: Record<string, string> = {
 export default function TicketDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [ticket, setTicket] = useState<any>(null)
+  const [ticket, setTicket] = useState<Ticket | null>(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
-  const [polling, setPolling] = useState(false)
 
-  const fetchTicket = async () => {
-    const r = await api.get(`/ticket/${id}`)
-    setTicket(r.data)
-    return r.data
-  }
+  const polling = ticket !== null && !ticket.category && !ticket.ai_response
 
   useEffect(() => {
-    fetchTicket()
-      .catch(() => navigate('/tickets'))
-      .finally(() => setLoading(false))
-  }, [id])
+    let cancelled = false
+    api
+      .get(`/ticket/${id}`)
+      .then((r) => { if (!cancelled) setTicket(r.data) })
+      .catch(() => { if (!cancelled) navigate('/tickets') })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [id, navigate])
 
-  // Poll if AI hasn't responded yet
   useEffect(() => {
-    if (!ticket) return
-    if (ticket.category || ticket.ai_response) return
-    setPolling(true)
+    if (!ticket || ticket.category || ticket.ai_response) return
     const interval = setInterval(async () => {
-      const t = await fetchTicket()
-      if (t.category || t.ai_response) {
-        setPolling(false)
+      try {
+        const r = await api.get(`/ticket/${id}`)
+        if (r.data.category || r.data.ai_response) {
+          setTicket(r.data)
+          clearInterval(interval)
+        }
+      } catch {
         clearInterval(interval)
       }
     }, 3000)
     return () => clearInterval(interval)
-  }, [ticket?.id, ticket?.category])
+  }, [id, ticket])
 
-  const updateStatus = async (status: string) => {
+  const updateStatus = async (status: TicketStatus) => {
     setUpdating(true)
     try {
       const r = await api.patch(`/ticket/${id}`, { status })
@@ -95,7 +97,7 @@ export default function TicketDetailPage() {
           <h1 className="text-xl font-semibold">Ticket Details</h1>
           <p className="text-xs text-muted-foreground font-mono mt-0.5">{ticket.id}</p>
         </div>
-        <Badge variant={statusColor[ticket.status] ?? 'outline'} className="capitalize text-sm px-3 py-1">
+        <Badge variant={statusColor[ticket.status]} className="capitalize text-sm px-3 py-1">
           {ticket.status.replace('_', ' ')}
         </Badge>
       </div>
@@ -118,15 +120,13 @@ export default function TicketDetailPage() {
         <Card className="border-dashed">
           <CardContent className="flex items-center gap-3 py-5">
             <div className="p-2 rounded-full bg-muted">
-              {polling ? (
-                <RefreshCw size={16} className="text-muted-foreground animate-spin" />
-              ) : (
-                <Bot size={16} className="text-muted-foreground" />
-              )}
+              {polling
+                ? <RefreshCw size={16} className="text-muted-foreground animate-spin" />
+                : <Bot size={16} className="text-muted-foreground" />}
             </div>
             <div>
               <p className="text-sm font-medium">
-                {polling ? 'AI is analyzing your ticket…' : 'Awaiting AI analysis'}
+                {polling ? 'AI is analyzing your ticket...' : 'Awaiting AI analysis'}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {polling ? 'This usually takes a few seconds' : 'Analysis will appear here shortly'}
@@ -145,15 +145,15 @@ export default function TicketDetailPage() {
           <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-2">
               {ticket.priority && (
-                <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${priorityColor[ticket.priority] ?? ''}`}>
+                <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${priorityColor[ticket.priority]}`}>
                   <Zap size={11} />
-                  {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)} Priority
+                  {capitalize(ticket.priority)} Priority
                 </span>
               )}
               {ticket.category && (
                 <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border bg-background">
                   <Tag size={11} />
-                  {categoryIcon[ticket.category] ?? '📁'} {ticket.category.charAt(0).toUpperCase() + ticket.category.slice(1)}
+                  {categoryIcon[ticket.category]} {capitalize(ticket.category)}
                 </span>
               )}
             </div>
@@ -176,7 +176,7 @@ export default function TicketDetailPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {['open', 'in_progress', 'resolved', 'closed'].map((s) => (
+                {(['open', 'in_progress', 'resolved', 'closed'] as TicketStatus[]).map((s) => (
                   <SelectItem key={s} value={s} className="capitalize">
                     {s.replace('_', ' ')}
                   </SelectItem>
